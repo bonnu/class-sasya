@@ -16,12 +16,12 @@ sub new {
 
 sub _regularize (\@$) {
     my ($classes, $class) = @_;
-    @{ $classes } = map {
-        s/^\+/$class\::/;
-        s/\*$/.*/;
-        s/::*/::/g;
-        "^$_\$";
-    } @{ $classes };
+    for my $s (@{ $classes }) {
+        $s =~ s/^\+/$class\::/;
+        $s =~ s/\*$/.*/;
+        $s =~ s/::*/::/g;
+        $s = "^$s\$";
+    }
 }
 
 sub load {
