@@ -3,10 +3,13 @@ package Foo;
 use strict;
 use warnings;
 use Class::Sasya;
+use Class::Sasya::Hook::Catch;
+use Class::Sasya::Hook::EvalScope;
 
 hooks
     'initialize',
-    scope('main' => 'eval') => [
+#   hook('main' => 'EvalScope') => [
+    'main' => [
         'phase1' => [qw/
             sub1
             sub2
@@ -23,7 +26,8 @@ hooks
             sub3
         /],
     ],
-    scope('catch' => 'catch'),
+#   hook('catch' => 'Catch'),
+    'catch',
     'finalize',
 ;
 

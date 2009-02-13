@@ -3,35 +3,35 @@ package Class::Sasya::Hook;
 use strict;
 use warnings;
 use base qw/Tree::Simple/;
-use Carp qw/croak/;
+use Carp ();
 use Tree::Simple qw/use_weak_refs/;
 
 use Class::Sasya::Callback;
-use Class::Sasya::Scope;
+
+sub hook {
+    my ($id, $type, %options) = @_;
+    my $class = __PACKAGE__ . (defined $type ? "::$type" : q//);
+    return $class->new($id, undef, %options);
+}
 
 sub new {
-    my ($class, $id, $parent) = @_;
-    my $scope;
-    if (Class::Sasya::Scope::is_scope($id)) {
-        $scope = $id;
-        $id    = $scope->id;
-    }
+    my ($class, $id, $parent, %options) = @_;
     if ($parent) {
         $parent->is_unique_on_fraternity($id)
-            || croak "is not unique on fraternity : $id";
+            || Carp::croak "is not unique on fraternity : $id";
     }
     unless ($id) {
-        $parent && croak 'id is necessary for the child.';
+        $parent && Carp::croak 'id is necessary for the child.';
         $id = '/';
     }
     my $self = $class->SUPER::new({}, $parent);
     $self->setUID($id);
-    $self->set_scope($scope);
+    $self->initialize(%options) if $self->can('initialize');
     return $self;
 }
 
 sub callback {
-    $_[0]->{callback} ||= Class::Sasya::Callback->new;
+    return $_[0]->{callback} ||= Class::Sasya::Callback->new;
 }
 
 sub is_unique_on_fraternity {
@@ -41,11 +41,24 @@ sub is_unique_on_fraternity {
     return 1;
 }
 
+sub _is_hook {
+    my $id = shift || return;
+    my $ref = ref $id || return;
+    return if $ref =~ /^(ARRAY|CODE|GLOB|HASH|REF|Regexp|SCALAR)$/;
+    return $id->isa(__PACKAGE__);
+}
+
 sub append_hooks {
     my ($self, @hooks) = @_;
     my $class = ref $self;
     while (my $id = shift @hooks) {
-        my $hook = $class->new($id, $self);
+        my $hook;
+        if (_is_hook($id)) {
+            $self->addChild($hook = $id);
+        }
+        else {
+            $hook = $class->new($id, $self);
+        }
         if (0 < @hooks && ref $hooks[0] eq 'ARRAY') {
             $hook->append_hooks(@{ shift @hooks });
         }
@@ -69,22 +82,12 @@ sub invoke {
     }
 }
 
-# This function is customizing of Tree::Simple::traverse.
 sub traverse {
     my ($self, $func) = @_;
     for my $child (@{ $self->{_children} }) {
         $func->($child);
         $child->traverse($func);
     }
-}
-
-sub set_scope {
-    my ($self, $scope) = @_;
-    $self->{_scope} = $scope;
-}
-
-sub get_scope {
-    $_[0]->{_scope};
 }
 
 sub get_path {

@@ -9,15 +9,14 @@ our $VERSION = '0.01';
 
 use Class::Sasya::Plugins;
 use Class::Sasya::Hook;
-use Class::Sasya::Scope;
 
 my @EXPORT_FUNCTIONS = qw/
     accessors
     class_accessor
     class_accessors
+    hook
     hooks
     plugins
-    scope
 /;
 
 __PACKAGE__->make_class_accessor('_plugins' => Class::Sasya::Plugins->new);
@@ -56,6 +55,10 @@ sub class_accessor (@) {
     $class->make_class_accessor(@_);
 }
 
+sub hook {
+    Class::Sasya::Hook::hook(@_);
+}
+
 sub hooks (@) {
     my $class = caller;
     $class->_root->append_hooks(@_);
@@ -72,10 +75,6 @@ sub plugins (@) {
             $class->add_hook($name, $sub);
         }
     }
-}
-
-sub scope {
-    Class::Sasya::Scope::scope(@_);
 }
 
 sub bootstrap {
