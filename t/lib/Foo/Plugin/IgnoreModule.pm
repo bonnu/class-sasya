@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Class::Sasya::Plugin;
 
-hook_to phase3 => 'noise';
+hook_to 'main/phase3' => 'noise';
 
 __PACKAGE__->mk_accessors qw/ignore_accessor/;
 

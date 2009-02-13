@@ -7,9 +7,15 @@ use Carp qw/croak/;
 use Tree::Simple qw/use_weak_refs/;
 
 use Class::Sasya::Callback;
+use Class::Sasya::Scope;
 
 sub new {
     my ($class, $id, $parent) = @_;
+    my $scope;
+    if (Class::Sasya::Scope::is_scope($id)) {
+        $scope = $id;
+        $id    = $scope->id;
+    }
     if ($parent) {
         $parent->is_unique_on_fraternity($id)
             || croak "is not unique on fraternity : $id";
@@ -20,6 +26,7 @@ sub new {
     }
     my $self = $class->SUPER::new({}, $parent);
     $self->setUID($id);
+    $self->set_scope($scope);
     return $self;
 }
 
@@ -60,6 +67,24 @@ sub invoke {
             last;
         }
     }
+}
+
+# This function is customizing of Tree::Simple::traverse.
+sub traverse {
+    my ($self, $func) = @_;
+    for my $child (@{ $self->{_children} }) {
+        $func->($child);
+        $child->traverse($func);
+    }
+}
+
+sub set_scope {
+    my ($self, $scope) = @_;
+    $self->{_scope} = $scope;
+}
+
+sub get_scope {
+    $_[0]->{_scope};
 }
 
 sub get_path {

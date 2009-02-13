@@ -16,6 +16,14 @@ sub new {
     bless { %$fields }, $class;
 }
 
+sub extends {
+    my ($class, @extend_classes) = @_;
+    {
+        no strict 'refs';
+        push @{$class . '::ISA'}, @extend_classes;
+    }
+}
+
 sub make_accessors {
     my $class = shift;
     map { $class->make_accessor($_) } @_;
@@ -69,6 +77,10 @@ sub mixin_to {
     }
 }
 
+sub _update_method_list {
+    @METHODS = @{ __PACKAGE__->_methods };
+}
+
 sub add_method {
     my ($class, $name, $sub) = @_;
     Sub::Install::reinstall_sub({
@@ -78,7 +90,7 @@ sub add_method {
     });
     if ($class eq __PACKAGE__) {
         warn "The method was added to the prototype: $name";
-        @METHODS = @{ __PACKAGE__->_methods };
+        _update_method_list;
     }
 }
 
@@ -97,7 +109,7 @@ sub _methods {
     *mixin = \&_mixin_from;
 }
 
-@METHODS = @{ __PACKAGE__->_methods };
+_update_method_list;
 
 1;
 

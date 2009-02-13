@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Class::Sasya::Plugin;
 
-hook_to 'phase3/sub3' => 'footer';
+hook_to 'main/phase3/sub3' => 'footer';
 
 option 'a' => 'SCALAR';
 

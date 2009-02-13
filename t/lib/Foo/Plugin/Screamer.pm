@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Class::Sasya::Plugin;
 
-hook_to 'phase3/sub1' => 'screamer';
+hook_to 'main/phase3/sub1' => 'screamer';
 
 sub screamer {
     my $self = shift;

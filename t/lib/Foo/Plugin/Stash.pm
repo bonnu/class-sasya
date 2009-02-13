@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Class::Sasya::Plugin;
 
-hook_to 'phase0' => sub { shift->stash({}) };
+hook_to 'initialize' => sub { shift->stash({}) };
 
 __PACKAGE__->make_accessors qw/stash/;
 

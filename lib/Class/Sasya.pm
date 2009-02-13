@@ -9,23 +9,35 @@ our $VERSION = '0.01';
 
 use Class::Sasya::Plugins;
 use Class::Sasya::Hook;
+use Class::Sasya::Scope;
 
-__PACKAGE__->make_class_accessor(_plugins => Class::Sasya::Plugins->new);
-__PACKAGE__->make_class_accessor(root     => Class::Sasya::Hook->new);
+my @EXPORT_FUNCTIONS = qw/
+    accessors
+    class_accessor
+    class_accessors
+    hooks
+    plugins
+    scope
+/;
+
+__PACKAGE__->make_class_accessor('_plugins' => Class::Sasya::Plugins->new);
+__PACKAGE__->make_class_accessor('_root'    => Class::Sasya::Hook->new);
 
 sub import {
     my $class  = shift;
     my $caller = caller;
     if ($class eq __PACKAGE__) {
         if ($caller ne 'main' && ! $caller->isa(__PACKAGE__)) {
-            {
-                no strict 'refs';
-                push @{$caller . '::ISA'}, __PACKAGE__;
-            }
-            map { $class->export_to($caller, $_) } qw/
-                accessors class_accessor class_accessors hooks plugins
-            /;
+            Class::Sasya::Class::extends($caller, __PACKAGE__);
         }
+    }
+    else {
+        if ($caller ne 'main' && ! $caller->isa($class)) {
+            Class::Sasya::Class::extends($caller, $class);
+        }
+    }
+    if ($caller ne 'main') {
+        map { $class->export_to($caller, $_) } @EXPORT_FUNCTIONS;
     }
 }
 
@@ -46,7 +58,7 @@ sub class_accessor (@) {
 
 sub hooks (@) {
     my $class = caller;
-    $class->root->append_hooks(@_);
+    $class->_root->append_hooks(@_);
 }
 
 # dirty
@@ -62,19 +74,25 @@ sub plugins (@) {
     }
 }
 
+sub scope {
+    Class::Sasya::Scope::scope(@_);
+}
+
 sub bootstrap {
     my ($class, @args) = @_;
     my $self = Scalar::Util::blessed $class ? $class : $class->new;
-    $self->root->traverse(sub {
-# undetermined
-        my $node = shift;
-        $node->invoke($self, @args);
-    });
+    $self->_root->traverse(
+        # undetermined
+        sub {
+            my $node = shift;
+            $node->invoke($self, @args);
+        },
+    );
 }
 
 sub find_hook {
     my $class = shift;
-    return $class->root->find_by_path(@_);
+    return $class->_root->find_by_path(@_);
 }
 
 sub add_hook {
