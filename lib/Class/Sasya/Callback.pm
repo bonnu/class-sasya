@@ -22,7 +22,7 @@ sub add {
 }
 
 sub iterate {
-    my $self = shift;
+    my ($self) = @_;
     return unless defined $self->{current};
     if ($self->{current} == $#{ $self->{order} }) {
         $self->{current} = -1;

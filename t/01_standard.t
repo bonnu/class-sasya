@@ -9,6 +9,7 @@ BEGIN {
     package Bar;
 
     use Foo;
+
     __PACKAGE__->a('setup at Bar');
 
     __PACKAGE__->b(qw/1 2 3 4/);

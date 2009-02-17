@@ -8,8 +8,7 @@ use Class::Sasya::Hook::EvalScope;
 
 hooks
     'initialize',
-#   hook('main' => 'EvalScope') => [
-    'main' => [
+    hook('main' => 'EvalScope') => [
         'phase1' => [qw/
             sub1
             sub2
@@ -26,8 +25,7 @@ hooks
             sub3
         /],
     ],
-#   hook('catch' => 'Catch'),
-    'catch',
+    hook('catch' => 'Catch'),
     'finalize',
 ;
 

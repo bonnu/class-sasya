@@ -24,7 +24,7 @@ sub new {
         $parent && Carp::croak 'id is necessary for the child.';
         $id = '/';
     }
-    my $self = $class->SUPER::new({}, $parent);
+    my $self = $class->Tree::Simple::new({}, $parent);
     $self->setUID($id);
     $self->initialize(%options) if $self->can('initialize');
     return $self;
@@ -50,14 +50,13 @@ sub _is_hook {
 
 sub append_hooks {
     my ($self, @hooks) = @_;
-    my $class = ref $self;
     while (my $id = shift @hooks) {
         my $hook;
         if (_is_hook($id)) {
             $self->addChild($hook = $id);
         }
         else {
-            $hook = $class->new($id, $self);
+            $hook = $self->get_root->new($id, $self);
         }
         if (0 < @hooks && ref $hooks[0] eq 'ARRAY') {
             $hook->append_hooks(@{ shift @hooks });
@@ -84,10 +83,8 @@ sub invoke {
 
 sub traverse {
     my ($self, $func) = @_;
-    for my $child (@{ $self->{_children} }) {
-        $func->($child);
-        $child->traverse($func);
-    }
+    $func->($self);
+    map { $_->traverse($func) } @{ $self->{_children} };
 }
 
 sub get_path {

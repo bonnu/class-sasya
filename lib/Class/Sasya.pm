@@ -7,8 +7,8 @@ use Scalar::Util ();
 
 our $VERSION = '0.01';
 
-use Class::Sasya::Plugins;
 use Class::Sasya::Hook;
+use Class::Sasya::Plugins;
 
 my @EXPORT_FUNCTIONS = qw/
     accessors
@@ -19,8 +19,8 @@ my @EXPORT_FUNCTIONS = qw/
     plugins
 /;
 
-__PACKAGE__->make_class_accessor('_plugins' => Class::Sasya::Plugins->new);
-__PACKAGE__->make_class_accessor('_root'    => Class::Sasya::Hook->new);
+__PACKAGE__->make_class_accessor(_plugins => Class::Sasya::Plugins->new);
+__PACKAGE__->make_class_accessor(_root    => Class::Sasya::Hook->new);
 
 sub import {
     my $class  = shift;
@@ -64,7 +64,7 @@ sub hooks (@) {
     $class->_root->append_hooks(@_);
 }
 
-# dirty
+# dirty code
 sub plugins (@) {
     my $class = caller;
     my @loaded = $class->_plugins->load(load_class => $class, @_);
@@ -77,16 +77,12 @@ sub plugins (@) {
     }
 }
 
+# undetermined
 sub bootstrap {
-    my ($class, @args) = @_;
-    my $self = Scalar::Util::blessed $class ? $class : $class->new;
-    $self->_root->traverse(
-        # undetermined
-        sub {
-            my $node = shift;
-            $node->invoke($self, @args);
-        },
-    );
+    my $class = shift;
+    my $self    = Scalar::Util::blessed $class ? $class : $class->new;
+    my $handler = $self->traversal_handler(@_);
+    $self->_root->traverse($handler);
 }
 
 sub find_hook {
@@ -99,6 +95,14 @@ sub add_hook {
     if (my $hook = $class->find_hook($name)) {
         $hook->register($callback);
     }
+}
+
+sub traversal_handler {
+    my ($self, @args) = @_;
+    return sub {
+        my ($hook) = @_;
+        $_[0]->invoke($self, @args);
+    };
 }
 
 1;

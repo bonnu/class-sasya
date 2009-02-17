@@ -6,9 +6,11 @@ use base qw/Class::Sasya::Hook/;
 
 sub traverse {
     my ($self, $func) = @_;
-    for my $child (@{ $self->{_children} }) {
-        $func->($child);
-        $child->traverse($func);
+    eval {
+        $func->($self);
+        map { $_->traverse($func) } @{ $self->{_children} };
+    };
+    if ($@) {
     }
 }
 

@@ -19,6 +19,6 @@ BEGIN {
     __PACKAGE__->g({ foo => 1, bar => 2, baz => 3 });
 }
 
-cmpthese(10000, {
+cmpthese(100, {
     'Class::Sasya' => sub { Bar->bootstrap },
 });
