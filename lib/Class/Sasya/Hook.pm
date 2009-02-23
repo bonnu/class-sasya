@@ -9,13 +9,13 @@ use Tree::Simple qw/use_weak_refs/;
 use Class::Sasya::Callback;
 
 sub hook {
-    my ($id, $type, %options) = @_;
-    my $class = __PACKAGE__ . (defined $type ? "::$type" : q//);
-    return $class->new($id, undef, %options);
+    my ($id, $type, %args) = @_;
+    my $class = __PACKAGE__ . ($type ? "::$type" : q//);
+    return $class->new($id, undef, %args);
 }
 
 sub new {
-    my ($class, $id, $parent, %options) = @_;
+    my ($class, $id, $parent, %args) = @_;
     if ($parent) {
         $parent->is_unique_on_fraternity($id)
             || Carp::croak "is not unique on fraternity : $id";
@@ -26,12 +26,27 @@ sub new {
     }
     my $self = $class->Tree::Simple::new({}, $parent);
     $self->setUID($id);
-    $self->initialize(%options) if $self->can('initialize');
+    $self->update_hold_stack($args{holder}) if $args{holder};
+    $self->initialize(%args)                if $self->can('initialize');
     return $self;
 }
 
 sub callback {
     return $_[0]->{callback} ||= Class::Sasya::Callback->new;
+}
+
+sub hold_stack {
+    return $_[0]->{hold_stack} ||= [];
+}
+
+sub update_hold_stack {
+    my ($self, $holder) = @_;
+    my $hold_stack = $self->hold_stack;
+    for my $i ($#{ $hold_stack } .. -1) {
+        last if $i < 0;
+        splice @{ $hold_stack }, $i, 1 if $hold_stack->[$i] eq $holder;
+    }
+    unshift @{ $hold_stack }, $holder;
 }
 
 sub is_unique_on_fraternity {
@@ -42,24 +57,29 @@ sub is_unique_on_fraternity {
 }
 
 sub _is_hook {
-    my $id = shift || return;
+    my $id  = shift || return;
     my $ref = ref $id || return;
     return if $ref =~ /^(ARRAY|CODE|GLOB|HASH|REF|Regexp|SCALAR)$/;
     return $id->isa(__PACKAGE__);
 }
 
 sub append_hooks {
-    my ($self, @hooks) = @_;
+    my ($self, $args, @hooks) = @_;
+    my $level  = exists $args->{level} ? delete $args->{level} : 0;
+    my $caller = caller $level;
     while (my $id = shift @hooks) {
         my $hook;
         if (_is_hook($id)) {
             $self->addChild($hook = $id);
         }
         else {
-            $hook = $self->get_root->new($id, $self);
+            $hook = $self->get_root->new($id, $self, );
         }
+        $hook->update_hold_stack($caller);
         if (0 < @hooks && ref $hooks[0] eq 'ARRAY') {
-            $hook->append_hooks(@{ shift @hooks });
+            $hook->append_hooks(
+                { %{ $args }, level => $level + 1 }, @{ shift @hooks },
+            );
         }
     }
 }
@@ -134,7 +154,7 @@ Class::Sasya::Hook -
 
 =head1 SYNOPSIS
 
-  use Class::Sasya::Hook;
+ use Class::Sasya::Hook;
 
 =head1 DESCRIPTION
 

@@ -10,17 +10,23 @@ our $VERSION = '0.01';
 use Class::Sasya::Hook;
 use Class::Sasya::Plugins;
 
-my @EXPORT_FUNCTIONS = qw/
+our @EXPORT = qw/
     accessors
     class_accessor
     class_accessors
     hook
     hooks
     plugins
+    traversal_handler
 /;
 
 __PACKAGE__->make_class_accessor(_plugins => Class::Sasya::Plugins->new);
 __PACKAGE__->make_class_accessor(_root    => Class::Sasya::Hook->new);
+
+__PACKAGE__->make_class_accessor(_traversal_handler => sub {
+    my ($self, @args) = @_;
+    return sub { $_[0]->invoke($self, @args) };
+});
 
 sub import {
     my $class  = shift;
@@ -36,7 +42,7 @@ sub import {
         }
     }
     if ($caller ne 'main') {
-        map { $class->export_to($caller, $_) } @EXPORT_FUNCTIONS;
+        $class->export_to_level(1, @_);
     }
 }
 
@@ -56,12 +62,18 @@ sub class_accessor (@) {
 }
 
 sub hook {
+    my $class = caller;
     Class::Sasya::Hook::hook(@_);
 }
 
 sub hooks (@) {
     my $class = caller;
-    $class->_root->append_hooks(@_);
+    $class->_root->append_hooks({ level => 1 }, @_);
+}
+
+sub traversal_handler (&) {
+    my $class = caller;
+    $class->_traversal_handler(@_);
 }
 
 # dirty code
@@ -81,7 +93,7 @@ sub plugins (@) {
 sub bootstrap {
     my $class = shift;
     my $self    = Scalar::Util::blessed $class ? $class : $class->new;
-    my $handler = $self->traversal_handler(@_);
+    my $handler = $self->_traversal_handler->($self, @_);
     $self->_root->traverse($handler);
 }
 
@@ -97,14 +109,6 @@ sub add_hook {
     }
 }
 
-sub traversal_handler {
-    my ($self, @args) = @_;
-    return sub {
-        my ($hook) = @_;
-        $_[0]->invoke($self, @args);
-    };
-}
-
 1;
 
 __END__
@@ -117,7 +121,7 @@ Class::Sasya -
 
 =head1 SYNOPSIS
 
-  use Class::Sasya;
+ use Class::Sasya;
 
 =head1 DESCRIPTION
 

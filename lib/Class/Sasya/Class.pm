@@ -2,6 +2,7 @@ package Class::Sasya::Class;
 
 use strict;
 use warnings;
+use base qw/Exporter/;
 use Array::Diff;
 use Carp ();
 use Class::Inspector;
@@ -92,11 +93,6 @@ sub add_method {
         warn "The method was added to the prototype: $name";
         _update_method_list;
     }
-}
-
-sub export_to {
-    my ($class, $to, $name) = @_;
-    add_method($to, $name, $class->can($name));
 }
 
 sub _methods {
