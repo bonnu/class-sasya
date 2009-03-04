@@ -2,12 +2,9 @@ package Class::Sasya::Plugins;
 
 use strict;
 use warnings;
-use base qw/Class::Sasya::Class/;
 use Carp ();
 use Module::Find ();
 use UNIVERSAL::require;
-
-__PACKAGE__->make_accessors(qw/loaded/);
 
 sub new {
     my $class = shift;
@@ -55,7 +52,7 @@ sub load {
         $module->require or die $@;
         push @loaded, $module;
     }
-    my $loaded  = $self->loaded->{$load_class} ||= [];
+    my $loaded  = $self->{loaded}->{$load_class} ||= [];
     push @{ $loaded }, @loaded;
     @loaded;
 }

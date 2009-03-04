@@ -1,7 +1,8 @@
 package Foo::Plugin::Hello;
 
-use strict;
-use warnings;
+use Mouse::Role;
+
+=pod
 use Class::Sasya::Plugin;
 
 hook_to 'main/phase1/sub1' => 'hello';
@@ -10,6 +11,7 @@ sub hello {
     my $self = shift;
     $self->stash->{caption} .= 'hello';
 }
+=cut
 
 1;
 

@@ -1,10 +1,6 @@
 package Foo;
 
-use strict;
-use warnings;
 use Class::Sasya;
-use Class::Sasya::Hook::Catch;
-use Class::Sasya::Hook::EvalScope;
 
 hooks
     'initialize',
@@ -38,6 +34,8 @@ plugins
         +::Plugin::IgnoreModule
     /],
 ;
+
+no Class::Sasya;
 
 1;
 

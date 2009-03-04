@@ -1,5 +1,7 @@
 package Foo::Plugin::IgnoreModule;
 
+use Mouse::Role;
+=pod
 use strict;
 use warnings;
 use Class::Sasya::Plugin;
@@ -12,6 +14,7 @@ sub noise {
     my $self = shift;
     $self->stash->{caption} .= '/* noise!! */';
 }
+=cut
 
 1;
 

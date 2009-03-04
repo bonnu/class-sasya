@@ -1,5 +1,7 @@
 package Foo::Plugin::World;
 
+use Mouse::Role;
+=pod
 use strict;
 use warnings;
 use Class::Sasya::Plugin;
@@ -10,6 +12,7 @@ sub world {
     my $self = shift;
     $self->stash->{caption} .= 'world';
 }
+=cut
 
 1;
 

@@ -4,13 +4,18 @@ use strict;
 use warnings;
 use base qw/Tree::Simple/;
 use Carp ();
+use UNIVERSAL::require;
 use Tree::Simple qw/use_weak_refs/;
 
 use Class::Sasya::Callback;
 
 sub hook {
     my ($id, $type, %args) = @_;
-    my $class = __PACKAGE__ . ($type ? "::$type" : q//);
+    my $class = __PACKAGE__;
+    if ($type) {
+        $class .= "::$type";
+        $class->require or Carp::confess $@;
+    }
     return $class->new($id, undef, %args);
 }
 

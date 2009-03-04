@@ -2,110 +2,50 @@ package Class::Sasya::Class;
 
 use strict;
 use warnings;
-use base qw/Exporter/;
-use Array::Diff;
-use Carp ();
-use Class::Inspector;
-use Sub::Install;
+use base qw/Mouse/;
+use Mouse::Meta::Class;
+use Mouse::Util qw/get_linear_isa/;
 
-my @METHODS;
+use Class::Sasya::Util;
 
-sub new {
-    my ($proto, $fields) = @_;
-    my ($class) = ref $proto || $proto;
-    $fields = {} unless defined $fields;
-    bless { %$fields }, $class;
-}
+our @EXPORT = qw/class_has/;
 
-sub extends {
-    my ($class, @extend_classes) = @_;
+sub import {
+    my $class  = shift;
+    my $args   = defined $_[0] && ref $_[0] eq 'HASH' ? shift : {};
+    my $caller = exists $args->{caller} ? $args->{caller} : caller;
+    my $level  = exists $args->{level}  ? $args->{level}  : 1;
+    return if $caller eq 'main';
+    my $meta = Mouse::Meta::Class->initialize($caller);
+    $meta->superclasses || $meta->superclasses('Class::Sasya::Object');
     {
         no strict 'refs';
-        push @{$class . '::ISA'}, @extend_classes;
+        no warnings 'redefine';
+        *{"$caller\::meta"} = sub { $meta };
     }
+    $_->export_to_level($level) for @{ get_linear_isa($class) };
 }
 
-sub make_accessors {
-    my $class = shift;
-    map { $class->make_accessor($_) } @_;
+# When "MouseX::ClassAttribute" is released in the future, that will be used.
+sub class_has {
+    my $meta = Mouse::Meta::Class->initialize(caller);
+    Class::Sasya::Util::make_non_mop_class_accessor($meta, @_);
 }
 
-sub make_accessor {
-    my ($class, $field) = @_;
-    $class->add_method($field => sub {
-        return $_[0]->{$field} if @_ == 1;
-        return $_[0]->{$field} = $_[1] if @_ == 2;
-        return (shift)->{$field} = \@_;
-    })
-}
-
-sub make_class_accessors {
-    my $class = shift;
-    map { $class->make_class_accessor($_) } @_;
-}
-
-sub make_class_accessor {
-    my ($class, $field, $data) = @_;
-    my $sub = sub {
-        my $ref = ref $_[0];
-        if ($ref) {
-            return $_[0]->{$field} = $_[1] if @_ > 1;
-            return $_[0]->{$field} if exists $_[0]->{$field};
+sub unimport {
+    my $class  = shift;
+    my $caller = caller;
+    my @isa    = @{ get_linear_isa($class) };
+    {
+        no strict 'refs';
+        for my $class (@isa) {
+            for my $keyword (@{"$class\::EXPORT"}) {
+                delete ${"$caller\::"}{$keyword};
+            }
         }
-        my $wantclass = $ref || $_[0];
-        if (@_ > 1 && $class ne $wantclass) {
-            return $wantclass->make_class_accessor($field)->(@_);
-        }
-        $data = $_[1] if @_ > 1;
-        return $data;
-    };
-    $class->add_method($field => $sub);
-    $sub;
-}
-
-sub _mixin_from (@) {
-    my $target = 1 < @_ ? shift : caller;
-    my $class = shift;
-    mixin_to($class, $target);
-}
-
-sub mixin_to {
-    my ($class, $target) = @_;
-    $target ||= caller 0;
-    my $diff = Array::Diff->diff(\@METHODS, _methods($class));
-    for my $name (@{ $diff->added }) {
-        add_method($target, $name => $class->can($name));
     }
+    $caller->meta->make_immutable(inline_destructor => 1);
 }
-
-sub _update_method_list {
-    @METHODS = @{ __PACKAGE__->_methods };
-}
-
-sub add_method {
-    my ($class, $name, $sub) = @_;
-    Sub::Install::reinstall_sub({
-        code => ref $sub eq 'CODE' ? $sub : sub { $sub },
-        into => $class,
-        as   => $name,
-    });
-    if ($class eq __PACKAGE__) {
-        warn "The method was added to the prototype: $name";
-        _update_method_list;
-    }
-}
-
-sub _methods {
-    my $class = shift;
-    Class::Inspector->methods($class, @_);
-}
-
-{
-    no warnings 'once';
-    *mixin = \&_mixin_from;
-}
-
-_update_method_list;
 
 1;
 

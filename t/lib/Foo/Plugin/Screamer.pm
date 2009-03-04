@@ -1,5 +1,7 @@
 package Foo::Plugin::Screamer;
 
+use Mouse::Role;
+=pod
 use strict;
 use warnings;
 use Class::Sasya::Plugin;
@@ -10,6 +12,7 @@ sub screamer {
     my $self = shift;
     $self->stash->{caption} .= '!';
 }
+=cut
 
 1;
 

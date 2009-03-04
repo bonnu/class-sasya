@@ -1,5 +1,7 @@
 package Foo::Plugin::SettingInPackage;
 
+use Mouse::Role;
+=pod
 use strict;
 use warnings;
 use Class::Sasya::Plugin;
@@ -24,6 +26,7 @@ sub footer {
     my $self = shift;
     $self->stash->{caption} .= ' ' . $self->a;
 }
+=cut
 
 1;
 

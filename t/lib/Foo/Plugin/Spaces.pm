@@ -1,5 +1,7 @@
 package Foo::Plugin::Spaces;
 
+use Mouse::Role;
+=pod
 use strict;
 use warnings;
 use Class::Sasya::Plugin;
@@ -13,6 +15,7 @@ sub space {
     my $self = shift;
     $self->stash->{caption} .= ' ';
 }
+=cut
 
 1;
 

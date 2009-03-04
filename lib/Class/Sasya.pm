@@ -3,62 +3,25 @@ package Class::Sasya;
 use strict;
 use warnings;
 use base qw/Class::Sasya::Class/;
-use Scalar::Util ();
+use Mouse::Util qw/apply_all_roles get_linear_isa/;
+
+use Class::Sasya::Hook;
+use Class::Sasya::Util;
 
 our $VERSION = '0.01';
 
-use Class::Sasya::Hook;
-use Class::Sasya::Plugins;
-
 our @EXPORT = qw/
-    accessors
-    class_accessor
-    class_accessors
     hook
     hooks
     plugins
     traversal_handler
 /;
 
-__PACKAGE__->make_class_accessor(_plugins => Class::Sasya::Plugins->new);
-__PACKAGE__->make_class_accessor(_root    => Class::Sasya::Hook->new);
-
-__PACKAGE__->make_class_accessor(_traversal_handler => sub {
-    my ($self, @args) = @_;
-    return sub { $_[0]->invoke($self, @args) };
-});
-
 sub import {
+    $_->import for qw/strict warnings/;
     my $class  = shift;
     my $caller = caller;
-    if ($class eq __PACKAGE__) {
-        if ($caller ne 'main' && ! $caller->isa(__PACKAGE__)) {
-            Class::Sasya::Class::extends($caller, __PACKAGE__);
-        }
-    }
-    else {
-        if ($caller ne 'main' && ! $caller->isa($class)) {
-            Class::Sasya::Class::extends($caller, $class);
-        }
-    }
-    if ($caller ne 'main') {
-        $class->export_to_level(1, @_);
-    }
-}
-
-sub accessors (@) {
-    my $class = caller;
-    $class->make_accessors(@_);
-}
-
-sub class_accessors (@) {
-    my $class = caller;
-    $class->make_class_accessors(@_);
-}
-
-sub class_accessor (@) {
-    my $class = caller;
-    $class->make_class_accessor(@_);
+    $class->Class::Sasya::Class::import({ caller => $caller, level => 2 });
 }
 
 sub hook {
@@ -66,47 +29,22 @@ sub hook {
     Class::Sasya::Hook::hook(@_);
 }
 
-sub hooks (@) {
+sub hooks {
     my $class = caller;
     $class->_root->append_hooks({ level => 1 }, @_);
 }
 
+sub plugins {
+    my $class = caller;
+    apply_all_roles(
+        $class,
+        Class::Sasya::Util::resolve_plugin_list($class, @_),
+    );
+} 
+
 sub traversal_handler (&) {
     my $class = caller;
     $class->_traversal_handler(@_);
-}
-
-# dirty code
-sub plugins (@) {
-    my $class = caller;
-    my @loaded = $class->_plugins->load(load_class => $class, @_);
-    for my $plugin (@loaded) {
-        $plugin->mixin_to($class) if $plugin->can('mixin_to');
-        my @hooks = Class::Sasya::Plugin::hooks($plugin);
-        while (my ($name, $sub) = splice @hooks, 0, 2) {
-            $class->add_hook($name, $sub);
-        }
-    }
-}
-
-# undetermined
-sub bootstrap {
-    my $class = shift;
-    my $self    = Scalar::Util::blessed $class ? $class : $class->new;
-    my $handler = $self->_traversal_handler->($self, @_);
-    $self->_root->traverse($handler);
-}
-
-sub find_hook {
-    my $class = shift;
-    return $class->_root->find_by_path(@_);
-}
-
-sub add_hook {
-    my ($class, $name, $callback) = @_;
-    if (my $hook = $class->find_hook($name)) {
-        $hook->register($callback);
-    }
 }
 
 1;
