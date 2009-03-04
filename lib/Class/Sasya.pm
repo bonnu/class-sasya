@@ -17,13 +17,6 @@ our @EXPORT = qw/
     traversal_handler
 /;
 
-sub import {
-    $_->import for qw/strict warnings/;
-    my $class  = shift;
-    my $caller = caller;
-    $class->Class::Sasya::Class::import({ caller => $caller, level => 2 });
-}
-
 sub hook {
     my $class = caller;
     Class::Sasya::Hook::hook(@_);
