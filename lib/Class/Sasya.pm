@@ -1,12 +1,11 @@
 package Class::Sasya;
 
-use strict;
-use warnings;
-use base qw/Class::Sasya::Class/;
-use Mouse::Util qw/apply_all_roles get_linear_isa/;
+use Mouse;
+use base qw/Exporter/;
+use Mouse::Util qw/apply_all_roles/;
 
 use Class::Sasya::Hook;
-use Class::Sasya::Util;
+use Class::Sasya::Util qw/make_non_mop_class_accessor resolve_plugin_list/;
 
 our $VERSION = '0.01';
 
@@ -16,6 +15,32 @@ our @EXPORT = qw/
     plugins
     traversal_handler
 /;
+
+sub import {
+    strict->import;
+    warnings->import;
+    my $class = shift;
+    my $caller = caller;
+    return if $caller eq 'main';
+    Mouse->import({ into_level => 1 });
+    __PACKAGE__->export_to_level(1);
+    my $meta = $caller->meta;
+    {
+        no strict 'refs';
+        $meta->add_method($_, \&{$_}) for qw/bootstrap find_hook add_hook/;
+    }
+    make_non_mop_class_accessor(
+        $meta,
+        _root => Class::Sasya::Hook->new,
+    );
+    make_non_mop_class_accessor(
+        $meta,
+        _traversal_handler => sub {
+            my ($self, @args) = @_;
+            return sub { $_[0]->invoke($self, @args) };
+        },
+    );
+}
 
 sub hook {
     my $class = caller;
@@ -29,15 +54,33 @@ sub hooks {
 
 sub plugins {
     my $class = caller;
-    apply_all_roles(
-        $class,
-        Class::Sasya::Util::resolve_plugin_list($class, @_),
-    );
+    apply_all_roles($class, resolve_plugin_list($class, @_));
 } 
 
 sub traversal_handler (&) {
     my $class = caller;
     $class->_traversal_handler(@_);
+}
+
+{
+    sub bootstrap {
+        my $class = shift;
+        my $self    = Scalar::Util::blessed $class ? $class : $class->new;
+        my $handler = $self->_traversal_handler->($self, @_);
+        $self->_root->traverse($handler);
+    }
+    
+    sub find_hook {
+        my $class = shift;
+        return $class->_root->find_by_path(@_);
+    }
+    
+    sub add_hook {
+        my ($class, $name, $callback) = @_;
+        if (my $hook = $class->find_hook($name)) {
+            $hook->register($callback);
+        }
+    }
 }
 
 1;

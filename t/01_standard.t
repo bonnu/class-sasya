@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-#use Test::More 'no_plan';
+use Test::More 'no_plan';
 use FindBin::libs;
 use lib "$FindBin::Bin/lib";
 use Data::Dumper;
@@ -15,6 +15,8 @@ $foo->bootstrap;
 print Dumper($foo);
 
 print Dumper(\@Foo::ISA);
+
+is_deeply(\@Foo::ISA, [ 'Mouse::Object' ]);
 
 {
     package Bar;

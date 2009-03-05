@@ -2,27 +2,31 @@ package Class::Sasya::Util;
 
 use strict;
 use warnings;
+use base qw/Exporter/;
 use Carp ();
 use Module::Find ();
+
+our @EXPORT_OK = qw/make_non_mop_class_accessor resolve_plugin_list/;
 
 # This method is not suitable for the style of Mouse.
 # When "MouseX::ClassAttribute" is released in the future, that will be used.
 sub make_non_mop_class_accessor {
-    my ($class, $field, $data) = @_;
+    my ($meta, $field, $data) = @_;
+    my $class = $meta->name;
     my $sub = sub {
         my $ref = ref $_[0];
         if ($ref) {
             return $_[0]->{$field} = $_[1] if @_ > 1;
             return $_[0]->{$field} if exists $_[0]->{$field};
         }
-        my $wantclass = $ref || $_[0];
-        if (@_ > 1 && $class ne $wantclass) {
-            return make_non_mop_class_accessor($wantclass, $field)->(@_);
+        my $want_meta = $_[0]->meta;
+        if (@_ > 1 && $class ne $want_meta->name) {
+            return make_non_mop_class_accessor($want_meta, $field)->(@_);
         }
         $data = $_[1] if @_ > 1;
         return $data;
     };
-    $class->add_method($field => $sub);
+    $meta->add_method($field => $sub);
     $sub;
 }
 
