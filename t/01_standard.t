@@ -16,24 +16,20 @@ print Dumper($foo);
 
 print Dumper(\@Foo::ISA);
 
+print Dumper($foo->meta);
+
 is_deeply(\@Foo::ISA, [ 'Mouse::Object' ]);
 
 {
     package Bar;
 
-    use Foo;
+    use base qw/Foo/;
 }
 
-=pod
 my $bar = Bar->new;
+
+$bar->bootstrap;
 
 print Dumper($bar);
 
 print Dumper(\@Bar::ISA);
-
-use B::Deparse;
-my $deparse = B::Deparse->new;
-my $body    = $deparse->coderef2text(Foo->can('import'));
-
-print $body;
-=cut

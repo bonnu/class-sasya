@@ -1,9 +1,5 @@
 package Foo::Plugin::IgnoreModule;
 
-use Mouse::Role;
-=pod
-use strict;
-use warnings;
 use Class::Sasya::Plugin;
 
 hook_to 'main/phase3' => 'noise';
@@ -14,7 +10,6 @@ sub noise {
     my $self = shift;
     $self->stash->{caption} .= '/* noise!! */';
 }
-=cut
 
 1;
 

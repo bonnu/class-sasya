@@ -30,6 +30,24 @@ sub make_non_mop_class_accessor {
     $sub;
 }
 
+sub make_non_mop_class_only_accessor {
+    my ($meta, $field, $data) = @_;
+    my $class = $meta->name;
+    my $sub = sub {
+        my $ref = ref $_[0];
+        my $want_meta = $_[0]->meta;
+        if (@_ > 1 && $class ne $want_meta->name) {
+            return make_non_mop_class_only_accessor($want_meta, $field)->(@_);
+        }
+        if (@_ > 1 && ! ref $_[0]) {
+            $data = $_[1];
+        };
+        return $data;
+    };
+    $meta->add_method($field => $sub);
+    $sub;
+}
+
 sub resolve_plugin_list {
     my ($class, %args) = @_;
     my @namespace  = @{ $args{namespace} || [] };

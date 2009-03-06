@@ -1,13 +1,13 @@
 package Class::Sasya;
 
-use Mouse;
 use base qw/Exporter/;
-use Mouse::Util qw/apply_all_roles/;
+use Mouse;
+use Mouse::Util qw/apply_all_roles get_linear_isa/;
+
+our $VERSION = '0.01';
 
 use Class::Sasya::Hook;
 use Class::Sasya::Util qw/make_non_mop_class_accessor resolve_plugin_list/;
-
-our $VERSION = '0.01';
 
 our @EXPORT = qw/
     hook
@@ -27,6 +27,7 @@ sub import {
     my $meta = $caller->meta;
     {
         no strict 'refs';
+        delete ${"$caller\::"}{'with'};
         $meta->add_method($_, \&{$_}) for qw/bootstrap find_hook add_hook/;
     }
     make_non_mop_class_accessor(
@@ -55,7 +56,7 @@ sub hooks {
 sub plugins {
     my $class = caller;
     apply_all_roles($class, resolve_plugin_list($class, @_));
-} 
+}
 
 sub traversal_handler (&) {
     my $class = caller;
@@ -81,6 +82,21 @@ sub traversal_handler (&) {
             $hook->register($callback);
         }
     }
+}
+
+sub unimport {
+    my $class  = shift;
+    my $caller = caller;
+    my @isa    = @{ get_linear_isa($class) };
+    {
+        no strict 'refs';
+        for my $class (@isa) {
+            for my $keyword (@{"$class\::EXPORT"}) {
+                delete ${"$caller\::"}{$keyword};
+            }
+        }
+    }
+    $caller->meta->make_immutable(inline_destructor => 1);
 }
 
 1;
