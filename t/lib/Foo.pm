@@ -35,6 +35,14 @@ plugins
     /],
 ;
 
+class_has name => 'Boofy';
+
+has message => (
+    is      => 'rw',
+    lazy    => 1,
+    default => sub { 'foo bar baz' },
+);
+
 no Class::Sasya;
 
 1;

@@ -4,7 +4,15 @@ use strict;
 use warnings;
 use base qw/Mouse::Role/;
 
+our $VERSION = '0.01';
+
+use Class::Sasya::Util qw/
+    make_class_accessor
+    resolve_plugin_list
+/;
+
 our @EXPORT = qw/
+    class_has
     hook_to
 /;
 
@@ -18,14 +26,23 @@ sub import {
     {
         no strict 'refs';
         no warnings 'redefine';
-        *{$caller.'::meta'} = sub { $meta };
+        *{$caller . '::meta'} = sub { $meta };
     }
     Mouse::Role->export_to_level(1, @_);
     Class::Sasya::Plugin->export_to_level(1, @_);
 }
 
-sub hook_to {
+sub class_has {
     my $class = caller;
+    make_class_accessor($class, @_);
+}
+
+sub hook_to {
+    my ($hook, $sub) = @_;
+    my $meta = Mouse::Meta::Role->initialize(caller);
+    # Ad-hoc
+    my $list = $meta->{hook_point} ||= {};
+    push @{ $list->{$hook} ||= [] }, $sub;
 }
 
 1;

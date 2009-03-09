@@ -1,11 +1,8 @@
 package Foo::Plugin::SettingInPackage;
 
-use Mouse::Role;
-=pod
-use strict;
-use warnings;
 use Class::Sasya::Plugin;
 
+=pod
 hook_to 'main/phase3/sub3' => 'footer';
 
 option 'a' => 'SCALAR';

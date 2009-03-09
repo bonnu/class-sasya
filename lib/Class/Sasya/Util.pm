@@ -6,13 +6,18 @@ use base qw/Exporter/;
 use Carp ();
 use Module::Find ();
 
-our @EXPORT_OK = qw/make_non_mop_class_accessor resolve_plugin_list/;
+our @EXPORT_OK = qw/
+    apply_all_plugin_hooks
+    make_class_accessor
+    make_class_only_accessor
+    resolve_plugin_list
+/;
 
 # This method is not suitable for the style of Mouse.
 # When "MouseX::ClassAttribute" is released in the future, that will be used.
-sub make_non_mop_class_accessor {
-    my ($meta, $field, $data) = @_;
-    my $class = $meta->name;
+sub make_class_accessor {
+    my ($class, $field, $data) = @_;
+    my $meta = $class->meta;
     my $sub = sub {
         my $ref = ref $_[0];
         if ($ref) {
@@ -21,30 +26,46 @@ sub make_non_mop_class_accessor {
         }
         my $want_meta = $_[0]->meta;
         if (@_ > 1 && $class ne $want_meta->name) {
-            return make_non_mop_class_accessor($want_meta, $field)->(@_);
+            return make_class_accessor($want_meta, $field)->(@_);
         }
         $data = $_[1] if @_ > 1;
         return $data;
     };
-    $meta->add_method($field => $sub);
+    if ($meta->isa('Mouse::Meta::Class')) {
+        $meta->add_method($field => $sub);
+    }
+    else {
+        # for plug-in
+        no strict 'refs';
+        no warnings 'redefine';
+        *{$class . "::$field"} = $sub;
+    }
     $sub;
 }
 
-sub make_non_mop_class_only_accessor {
-    my ($meta, $field, $data) = @_;
-    my $class = $meta->name;
-    my $sub = sub {
+sub make_class_only_accessor {
+    my ($class, $field, $data) = @_;
+    my $meta = $class->meta;
+    my $sub  = sub {
         my $ref = ref $_[0];
-        my $want_meta = $_[0]->meta;
-        if (@_ > 1 && $class ne $want_meta->name) {
-            return make_non_mop_class_only_accessor($want_meta, $field)->(@_);
+        my $want_class = $_[0]->meta->name;
+        if (@_ > 1 && $class ne $want_class) {
+            return make_class_only_accessor($want_class, $field)->(@_);
         }
         if (@_ > 1 && ! ref $_[0]) {
             $data = $_[1];
         };
         return $data;
     };
-    $meta->add_method($field => $sub);
+    if ($meta->isa('Mouse::Meta::Class')) {
+        $meta->add_method($field => $sub);
+    }
+    else {
+        # for plug-in
+        no strict 'refs';
+        no warnings 'redefine';
+        *{$class . "::$field"} = $sub;
+    }
     $sub;
 }
 
@@ -87,6 +108,16 @@ sub _regularize_namespace {
         $s =~ s/\*$/.*/;
         $s =~ s/::*/::/g;
         $s = "^$s\$";
+    }
+}
+
+sub apply_all_plugin_hooks {
+    my ($class, @plugins) = @_;
+    for my $plugin (@plugins) {
+        my $list = $plugin->meta->{hook_point} || next;
+        for my $key (keys %{ $list }) {
+            $class->add_hook($key, $_) for @{ $list->{$key} };
+        }
     }
 }
 

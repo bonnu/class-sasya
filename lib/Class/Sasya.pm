@@ -1,15 +1,20 @@
 package Class::Sasya;
 
-use base qw/Exporter/;
 use Mouse;
+use base qw/Exporter/;
 use Mouse::Util qw/apply_all_roles get_linear_isa/;
 
 our $VERSION = '0.01';
 
 use Class::Sasya::Hook;
-use Class::Sasya::Util qw/make_non_mop_class_accessor resolve_plugin_list/;
+use Class::Sasya::Util qw/
+    apply_all_plugin_hooks
+    make_class_accessor
+    resolve_plugin_list
+/;
 
 our @EXPORT = qw/
+    class_has
     hook
     hooks
     plugins
@@ -30,17 +35,22 @@ sub import {
         delete ${"$caller\::"}{'with'};
         $meta->add_method($_, \&{$_}) for qw/bootstrap find_hook add_hook/;
     }
-    make_non_mop_class_accessor(
-        $meta,
+    make_class_accessor(
+        $caller,
         _root => Class::Sasya::Hook->new,
     );
-    make_non_mop_class_accessor(
-        $meta,
+    make_class_accessor(
+        $caller,
         _traversal_handler => sub {
             my ($self, @args) = @_;
             return sub { $_[0]->invoke($self, @args) };
         },
     );
+}
+
+sub class_has {
+    my $class = caller;
+    make_class_accessor($class, @_);
 }
 
 sub hook {
@@ -55,7 +65,9 @@ sub hooks {
 
 sub plugins {
     my $class = caller;
-    apply_all_roles($class, resolve_plugin_list($class, @_));
+    my @plugins = resolve_plugin_list($class, @_);
+    apply_all_roles($class, @plugins);
+    apply_all_plugin_hooks($class, @plugins);
 }
 
 sub traversal_handler (&) {

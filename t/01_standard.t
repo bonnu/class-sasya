@@ -10,26 +10,16 @@ use Foo;
 
 my $foo = Foo->new;
 
+isa_ok  +$foo, 'Mouse::Object';
+
+can_ok  +$foo, 'name';
+
+is      $foo->name, 'Boofy', '$foo->name is "Boofy"';
+
+can_ok  +$foo, 'message';
+
+is      $foo->message, 'foo bar baz', '$foo->message is "foo bar baz"';
+
 $foo->bootstrap;
 
-print Dumper($foo);
-
-print Dumper(\@Foo::ISA);
-
-print Dumper($foo->meta);
-
-is_deeply(\@Foo::ISA, [ 'Mouse::Object' ]);
-
-{
-    package Bar;
-
-    use base qw/Foo/;
-}
-
-my $bar = Bar->new;
-
-$bar->bootstrap;
-
-print Dumper($bar);
-
-print Dumper(\@Bar::ISA);
+is      $foo->stash->{caption}, 'hello world!', '$foo->stash->{caption} is "hello world!"';
