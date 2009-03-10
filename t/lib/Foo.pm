@@ -39,11 +39,13 @@ class_has name => 'Boofy';
 
 has message => (
     is      => 'rw',
-    lazy    => 1,
-    default => sub { 'foo bar baz' },
+    isa     => 'Str',
+    default => 'foo bar baz',
 );
 
 no Class::Sasya;
+
+__PACKAGE__->meta->make_immutable(inline_destructor => 1);
 
 1;
 

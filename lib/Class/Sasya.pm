@@ -99,16 +99,12 @@ sub traversal_handler (&) {
 sub unimport {
     my $class  = shift;
     my $caller = caller;
-    my @isa    = @{ get_linear_isa($class) };
     {
         no strict 'refs';
-        for my $class (@isa) {
-            for my $keyword (@{"$class\::EXPORT"}) {
-                delete ${"$caller\::"}{$keyword};
-            }
+        for my $key (@{__PACKAGE__ . '::EXPORT'}, @Mouse::EXPORT) {
+            delete ${"$caller\::"}{$key};
         }
     }
-    $caller->meta->make_immutable(inline_destructor => 1);
 }
 
 1;

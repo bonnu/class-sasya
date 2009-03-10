@@ -4,7 +4,7 @@ use Class::Sasya::Plugin;
 
 has stash => (
     is      => 'rw',
-    lazy    => 1,
+    isa     => 'HashRef',
     default => sub { +{} },
 );
 
