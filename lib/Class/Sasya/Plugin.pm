@@ -45,6 +45,17 @@ sub hook_to {
     push @{ $list->{$hook} ||= [] }, $sub;
 }
 
+sub unimport {
+    my $class  = shift;
+    my $caller = caller;
+    {
+        no strict 'refs';
+        for my $key (@{__PACKAGE__ . '::EXPORT'}, @Mouse::Role::EXPORT) {
+            delete ${"$caller\::"}{$key};
+        }
+    }
+}
+
 1;
 
 __END__

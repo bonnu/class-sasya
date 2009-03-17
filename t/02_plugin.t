@@ -2,50 +2,46 @@
 use strict;
 use warnings;
 use Test::More 'no_plan';
+use FindBin;
+use lib "$FindBin::Bin/lib";
 
 {
-    package TestClass::Plugin::Foo;
-    use Class::Sasya::Plugin;
-    sub mixture_1 { 1 }
+    package CaseA;
+    use Class::Sasya;
 
-    package TestClass::Plugin::Bar;
-    use Class::Sasya::Plugin;
-    sub mixture_2 { 1 }
+    plugins namespace => [qw/ TestPlugin::Hello /];
+}
 
-    __PACKAGE__->make_accessors qw/bar/;
+my $case_a = CaseA->new;
 
-    package TestClass::Plugin::Baz;
-    sub mixture_3 { 1 } # non_mixture
+can_ok  +$case_a, 'hello';
+
+{
+    package CaseB;
+    use Class::Sasya;
+
+    eval { plugins namespace => [qw/ TestPlugin::World /] };
+
+    main::like
+        $@,
+        qr/\A'TestPlugin::World' requires the method 'hello' to be implemented by 'CaseB'/;
 }
 
 {
-    package Foo;
-    mixin TestClass::Plugin::Foo;
+    package CaseC;
+    use Class::Sasya;
+
+    plugins namespace => [qw/ TestPlugin::Hello TestPlugin::World /];
 }
 
-is_deeply(
-    Class::Sasya::Class::_methods('Foo'),
-    [qw/
-        hook_to
-        mixture_1
-        option
-    /],
-);
+my $case_c = CaseC->new;
 
-{
-    package Foo;
-    mixin TestClass::Plugin::Bar;
-    # Can't locate object method "mixin"
-    eval { mixin TestClass::Plugin::Baz };
-}
+can_ok  +$case_c, 'hello';
+can_ok  +$case_c, 'world';
 
-is_deeply(
-    Class::Sasya::Class::_methods('Foo'),
-    [qw/
-        bar
-        hook_to
-        mixture_1
-        mixture_2
-        option
-    /],
-);
+is      $case_c->hello, 'Hello!';
+is      $case_c->world, 'World!';
+
+is      $case_c->say_hello_world, 'Hello world!';
+
+

@@ -2,9 +2,8 @@
 use strict;
 use warnings;
 use Test::More 'no_plan';
-use FindBin::libs;
+use FindBin;
 use lib "$FindBin::Bin/lib";
-use Data::Dumper;
 
 use Foo;
 

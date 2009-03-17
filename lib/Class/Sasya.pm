@@ -2,12 +2,12 @@ package Class::Sasya;
 
 use Mouse;
 use base qw/Exporter/;
-use Mouse::Util qw/apply_all_roles get_linear_isa/;
 
 our $VERSION = '0.01';
 
 use Class::Sasya::Hook;
 use Class::Sasya::Util qw/
+    apply_all_plugins
     apply_all_plugin_hooks
     make_class_accessor
     resolve_plugin_list
@@ -66,7 +66,7 @@ sub hooks {
 sub plugins {
     my $class = caller;
     my @plugins = resolve_plugin_list($class, @_);
-    apply_all_roles($class, @plugins);
+    apply_all_plugins($class, @plugins);
     apply_all_plugin_hooks($class, @plugins);
 }
 
