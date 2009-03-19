@@ -115,17 +115,52 @@ __END__
 
 =head1 NAME
 
-Class::Sasya -
+Class::Sasya - 
 
 =head1 SYNOPSIS
 
- use Class::Sasya;
+ package Salute;
+ use Class::Sasya; # automatically turns on strict and warnings (Mouse base)
+ 
+ # The flow of event with hook is defined
+ hooks
+     'initialize'
+     'main' => [qw/
+         foo
+         bar
+         baz
+     /],
+     'finalize',
+ ;
+ 
+ # Modules that namespace corresponds to Salute::Plugin::* is loaded
+ plugins
+     namespace => [qw/ +Plugin::* /],
+ ;
 
 =head1 DESCRIPTION
 
-"Sasya" is one of the chocolate confectioneries that represent Japan.
+=head2 What is "Sasya(or Sasha)" ?
+
+"Sasya(or Sasha)" is one of the chocolate confectioneries that represent Japan.
 It piles a chocolate as thin as the fiber like the layer,
 is woven delicately, and is very delicious.
+
+=head2 
+
+=head1 KEYWORDS
+
+=head2 hooks
+
+=head2 hook
+
+=head2 plugins
+
+=head2 class_has
+
+=head2 traersal_handler
+
+=head1 
 
 =head1 AUTHOR
 

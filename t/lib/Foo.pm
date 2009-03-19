@@ -27,11 +27,11 @@ hooks
 
 plugins
     namespace => [qw/
-        +::Plugin::*
+        +Plugin::*
     /],
     ignore    => [qw/
-        +::Plugin::AnError
-        +::Plugin::IgnoreModule
+        +Plugin::AnError
+        +Plugin::IgnoreModule
     /],
 ;
 

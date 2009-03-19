@@ -44,4 +44,31 @@ is      $case_c->world, 'World!';
 
 is      $case_c->say_hello_world, 'Hello world!';
 
+{
+    package TestPlugin::InnerPackage;
+    use Class::Sasya::Plugin;
 
+    has innerpackage_method => (is => 'rw', isa => 'Str');
+
+    package CaseD;
+    use Class::Sasya;
+
+    plugins namespace => [qw/ TestPlugin::InnerPackage /];
+}
+
+my $case_d = CaseD->new;
+
+can_ok  +$case_d, 'innerpackage_method';
+
+{
+    package CaseE;
+    use Class::Sasya;
+
+    plugins namespace => [qw/ TestPlugin::* /];
+}
+
+my $case_e = CaseE->new;
+
+can_ok  +$case_e, 'hello';
+can_ok  +$case_e, 'world';
+can_ok  +$case_e, 'innerpackage_method';

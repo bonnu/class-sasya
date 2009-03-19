@@ -4,7 +4,8 @@ use strict;
 use warnings;
 use base qw/Exporter/;
 use Carp qw/croak confess/;
-use Module::Find ();
+use Devel::InnerPackage qw/list_packages/;
+use Module::Find qw/findallmod/;
 use Mouse::Meta::Class;
 
 our @EXPORT_OK = qw/
@@ -47,7 +48,7 @@ sub make_class_accessor {
 
 sub make_class_only_accessor {
     my ($class, $field, $data) = @_;
-    my $meta = $class->meta;
+    my $meta = Mouse::Meta::Class->initialize($class);
     my $sub  = sub {
         my $ref = ref $_[0];
         my $want_class = $_[0]->meta->name;
@@ -88,16 +89,17 @@ sub resolve_plugin_list {
     for my $re (@namespace) {
         if ($re =~ /^\^(.*)?(?=::\.\*\$$)/) {
             push @ns, $1;
+            push @class, list_packages($1);
         }
         else {
             (my $name = $re) =~ s/(^\^|\$$)//g;
             push @class, $name;
         }
     }
-    my @modules = (@class, map { Module::Find::findallmod($_) } @ns);
+    my @modules = (@class, map { findallmod($_) } @ns);
     my @plugins;
     for my $module (@modules) {
-        next if grep { $module =~ /$_/ } @ignore;
+        next if grep { $module =~ /^$_$/ } @ignore;
         push @plugins, $module;
     }
     @plugins;
