@@ -20,7 +20,7 @@ our @EXPORT_OK = qw/
 # When "MouseX::ClassAttribute" is released in the future, that will be used.
 sub make_class_accessor {
     my ($class, $field, $data) = @_;
-    my $meta = $class->meta;
+    my $meta = Mouse::Meta::Class->initialize($class);
     my $sub = sub {
         my $ref = ref $_[0];
         if ($ref) {
@@ -28,8 +28,8 @@ sub make_class_accessor {
             return $_[0]->{$field} if exists $_[0]->{$field};
         }
         my $want_meta = $_[0]->meta;
-        if (@_ > 1 && $class ne $want_meta->name) {
-            return make_class_accessor($want_meta, $field)->(@_);
+        if (1 < @_ && $class ne $want_meta->name) {
+            return make_class_accessor($want_meta->name, $field)->(@_);
         }
         $data = $_[1] if @_ > 1;
         return $data;
@@ -51,9 +51,9 @@ sub make_class_only_accessor {
     my $meta = Mouse::Meta::Class->initialize($class);
     my $sub  = sub {
         my $ref = ref $_[0];
-        my $want_class = $_[0]->meta->name;
-        if (@_ > 1 && $class ne $want_class) {
-            return make_class_only_accessor($want_class, $field)->(@_);
+        my $want_meta = $_[0]->meta;
+        if (@_ > 1 && $class ne $want_meta->name) {
+            return make_class_only_accessor($want_meta->name, $field)->(@_);
         }
         if (@_ > 1 && ! ref $_[0]) {
             $data = $_[1];

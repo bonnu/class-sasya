@@ -29,12 +29,7 @@ sub import {
     return if $caller eq 'main';
     Mouse->import({ into_level => 1 });
     __PACKAGE__->export_to_level(1);
-    my $meta = $caller->meta;
-    {
-        no strict 'refs';
-        delete ${"$caller\::"}{'with'};
-        $meta->add_method($_, \&{$_}) for qw/bootstrap find_hook add_hook/;
-    }
+    export_for($caller);
     make_class_accessor(
         $caller,
         _root => Class::Sasya::Hook->new,
@@ -93,6 +88,16 @@ sub traversal_handler (&) {
         if (my $hook = $class->find_hook($name)) {
             $hook->register($callback);
         }
+    }
+}
+
+sub export_for {
+    my $export_class = shift;
+    my $meta = $export_class->meta;
+    {
+        no strict 'refs';
+        delete ${"$export_class\::"}{'with'};
+        $meta->add_method($_, \&{$_}) for qw/bootstrap find_hook add_hook/;
     }
 }
 

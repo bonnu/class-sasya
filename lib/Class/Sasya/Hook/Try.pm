@@ -1,4 +1,4 @@
-package Class::Sasya::Hook::EvalScope;
+package Class::Sasya::Hook::Try;
 
 use strict;
 use warnings;

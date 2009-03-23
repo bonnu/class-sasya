@@ -4,7 +4,7 @@ use Class::Sasya;
 
 hooks
     'initialize',
-    hook('main' => 'EvalScope') => [
+    hook('main' => 'Try') => [
         'phase1' => [qw/
             sub1
             sub2

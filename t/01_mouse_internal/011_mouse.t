@@ -12,11 +12,9 @@ BEGIN {
     main::use_ok('Mouse');
 }
 
-{
-    is_deeply
-        \@Mouse::EXPORT,
-        [qw/ extends has before after around override super blessed confess with /];
-}
+is_deeply
+    \@Mouse::EXPORT,
+    [qw/ extends has before after around override super blessed confess with /];
 
 my $foo = Foo->new;
 
@@ -45,3 +43,5 @@ isa_ok  +$foo, $TEST_EXTEND_CLASS;
 can_ok  +$foo, 'accessor_a';
 ok      $foo->accessor_a('This is accessor_a.');
 is      $foo->accessor_a, 'This is accessor_a.';
+
+
