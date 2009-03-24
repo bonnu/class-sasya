@@ -5,9 +5,11 @@ use warnings;
 use base qw/Class::Sasya::Hook/;
 
 sub traverse {
-    my ($self, $func) = @_;
-    $func->($self);
-    map { $_->traverse($func) } @{ $self->{_children} };
+    my ($self, $context, $func) = @_;
+    if ($context->has_error) {
+        $func->($self);
+        map { $_->traverse($context, $func) } @{ $self->{_children} };
+    }
 }
 
 1;

@@ -30,7 +30,6 @@ plugins
         +Plugin::*
     /],
     ignore    => [qw/
-        +Plugin::AnError
         +Plugin::IgnoreModule
     /],
 ;

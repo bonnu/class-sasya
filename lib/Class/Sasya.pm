@@ -1,10 +1,10 @@
 package Class::Sasya;
 
-use Mouse;
-use base qw/Exporter/;
+use base qw/Mouse/;
 
 our $VERSION = '0.01';
 
+use Class::Sasya::Context;
 use Class::Sasya::Hook;
 use Class::Sasya::Util qw/
     apply_all_plugins
@@ -73,9 +73,10 @@ sub traversal_handler (&) {
 {
     sub bootstrap {
         my $class = shift;
-        my $self    = Scalar::Util::blessed $class ? $class : $class->new;
+        my $self  = Scalar::Util::blessed $class ? $class : $class->new;
+        my $context = $self->context;
         my $handler = $self->_traversal_handler->($self, @_);
-        $self->_root->traverse($handler);
+        $self->_root->traverse($context, $handler);
     }
     
     sub find_hook {
@@ -89,6 +90,11 @@ sub traversal_handler (&) {
             $hook->register($callback);
         }
     }
+
+    sub context {
+        my $self = shift;
+        $self->{_context} ||= Class::Sasya::Context->new;
+    }
 }
 
 sub export_for {
@@ -97,7 +103,9 @@ sub export_for {
     {
         no strict 'refs';
         delete ${"$export_class\::"}{'with'};
-        $meta->add_method($_, \&{$_}) for qw/bootstrap find_hook add_hook/;
+        for my $name (qw/bootstrap find_hook add_hook context/) {
+            $meta->add_method($name, \&{$name});
+        }
     }
 }
 
