@@ -12,7 +12,6 @@ our @EXPORT_OK = qw/
     apply_all_plugins
     apply_all_plugin_hooks
     make_class_accessor
-    make_class_only_accessor
     resolve_plugin_list
 /;
 
@@ -32,32 +31,6 @@ sub make_class_accessor {
             return make_class_accessor($want_meta->name, $field)->(@_);
         }
         $data = $_[1] if @_ > 1;
-        return $data;
-    };
-    if ($meta->isa('Mouse::Meta::Class')) {
-        $meta->add_method($field => $sub);
-    }
-    else {
-        # for plug-in
-        no strict 'refs';
-        no warnings 'redefine';
-        *{$class . "::$field"} = $sub;
-    }
-    $sub;
-}
-
-sub make_class_only_accessor {
-    my ($class, $field, $data) = @_;
-    my $meta = Mouse::Meta::Class->initialize($class);
-    my $sub  = sub {
-        my $ref = ref $_[0];
-        my $want_meta = $_[0]->meta;
-        if (@_ > 1 && $class ne $want_meta->name) {
-            return make_class_only_accessor($want_meta->name, $field)->(@_);
-        }
-        if (@_ > 1 && ! ref $_[0]) {
-            $data = $_[1];
-        };
         return $data;
     };
     if ($meta->isa('Mouse::Meta::Class')) {

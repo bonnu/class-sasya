@@ -19,8 +19,10 @@ can_ok  +$foo, 'message';
 
 is      $foo->message, 'foo bar baz', '$foo->message is "foo bar baz"';
 
+ok      !$foo->context->has_error, '$foo->context has not an error';
+
 $foo->bootstrap;
 
 is      $foo->stash->{caption}, 'hello world!', '$foo->stash->{caption} is "hello world!"';
 
-ok      $foo->context->has_error, '$foo->context has an error'
+ok      $foo->context->has_error, '$foo->context has an error';
