@@ -4,8 +4,9 @@ use strict;
 use warnings;
 use base qw/Tree::Simple/;
 use Carp ();
-use UNIVERSAL::require;
+use Storable ();
 use Tree::Simple qw/use_weak_refs/;
+use UNIVERSAL::require;
 
 use Class::Sasya::Callback;
 
@@ -145,6 +146,11 @@ sub find_by_path {
         undef $cur;
     }
     return $cur ? $cur : ();
+}
+
+sub clone {
+    my $self = shift;
+    return Storable::dclone($self);
 }
 
 1;
