@@ -6,6 +6,8 @@ use base qw/Class::Sasya::Hook/;
 
 sub traverse {
     my ($self, $context, $func) = @_;
+    $context->add_path($self);
+    my $depth = $context->depth;
     eval {
         $func->($self);
         map { $_->traverse($context, $func) } @{ $self->{_children} };
@@ -13,6 +15,7 @@ sub traverse {
     if ($@) {
         $context->add_error($@);
     }
+    $context->cut_paths($depth);
 }
 
 1;

@@ -1,6 +1,9 @@
 package Class::Sasya;
 
-use base qw/Mouse/;
+use Mouse;
+extends 'Mouse';
+# Class::Sasya always uses MouseX::AttributeHelpers.
+use MouseX::AttributeHelpers;
 
 our $VERSION = '0.01';
 
@@ -93,7 +96,7 @@ sub traversal_handler (&) {
 
     sub context {
         my $self = shift;
-        $self->{_context} ||= Class::Sasya::Context->new;
+        $self->{context} ||= Class::Sasya::Context->new;
     }
 }
 

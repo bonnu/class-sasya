@@ -109,8 +109,10 @@ sub invoke {
 
 sub traverse {
     my ($self, $context, $func) = @_;
+    $context->add_path($self);
     $func->($self);
     map { $_->traverse($context, $func) } @{ $self->{_children} };
+    $context->pop_path;
 }
 
 sub get_path {
@@ -121,7 +123,7 @@ sub get_path {
         unshift @path, $cur->getUID;
         $cur = $cur->getParent;
     }
-    return join '/', q//, @path;
+    return '/' . join '/', @path;
 }
 
 sub get_root {
