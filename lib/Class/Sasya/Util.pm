@@ -46,9 +46,17 @@ sub make_class_accessor {
 }
 
 sub resolve_plugin_list {
-    my ($class, %args) = @_;
-    my @namespace  = @{ $args{namespace} || [] };
-    my @ignore     = @{ $args{ignore}    || [] };
+    my $class = shift;
+    my (@namespace, @ignore);
+    if (1 == scalar @_) {
+        push @namespace,
+            (ref $_[0] && ref $_[0] eq 'ARRAY') ? @{ $_[0] } : $_[0];
+    }
+    else {
+        my %args = @_;
+        @namespace = @{ $args{namespace} || [] };
+        @ignore    = @{ $args{ignore}    || [] };
+    }
     $class      || croak 'class is not specified';
     @namespace  || croak 'namespace is not specified';
     my $allowed_char = '[+*:\w]';
