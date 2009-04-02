@@ -6,18 +6,14 @@ use base qw/Class::Sasya::Hook/;
 
 sub traverse {
     my ($self, $context, $func) = @_;
+    my $ret;
     eval {
-        $context->current($self);
-        $func->($self);
-        return 0 if $context->goto;
-        map {
-            return 0 unless $_->traverse($context, $func)
-        } @{ $self->{_children} };
+        $ret = $self->SUPER::traverse($context, $func);
     };
     if ($@) {
         $context->add_error($@);
     }
-    return 1;
+    return defined $ret ? $ret : Class::Sasya::Hook::CONTINUE;
 }
 
 1;

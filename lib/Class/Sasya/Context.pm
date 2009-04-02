@@ -13,6 +13,12 @@ has goto => (
     default    => '',
 );
 
+has return => (
+    is         => 'rw',
+    isa        => 'Bool',
+    default    => sub { 0 },
+);
+
 has errors => (
     metaclass  => 'Collection::Array',
     is         => 'rw',

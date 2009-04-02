@@ -10,6 +10,9 @@ use UNIVERSAL::require;
 
 use Class::Sasya::Callback;
 
+sub BREAK    () { 0 }
+sub CONTINUE () { 1 }
+
 sub hook {
     my ($id, $type, %args) = @_;
     my $class = __PACKAGE__;
@@ -111,11 +114,11 @@ sub traverse {
     my ($self, $context, $func) = @_;
     $context->current($self);
     $func->($self);
-    return 0 if $context->goto;
+    return BREAK if $context->goto || $context->return;
     map {
-        return 0 unless $_->traverse($context, $func)
+        return BREAK unless $_->traverse($context, $func)
     } @{ $self->{_children} };
-    return 1;
+    return CONTINUE;
 }
 
 sub get_path {
