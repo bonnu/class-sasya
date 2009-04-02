@@ -2,22 +2,16 @@ package Class::Sasya::Context;
 
 use Mouse;
 
-has paths => (
-    metaclass  => 'Collection::Array',
+has current => (
     is         => 'rw',
-    isa        => 'ArrayRef',
-    default    => sub { [] },
-    provides   => {
-        empty  => 'has_paths',
-        push   => 'add_path',
-        pop    => 'pop_path',
-        clear  => 'clear_paths',
-    },
+    isa        => 'Class::Sasya::Hook',
 );
 
-sub depth     { scalar @{ $_[0]->{paths} } -1 }
-sub current   { $_[0]->{paths}[-1] }
-sub cut_paths { splice @{ $_[0]->{paths} }, $_[1] }
+has goto => (
+    is         => 'rw',
+    isa        => 'Str',
+    default    => '',
+);
 
 has errors => (
     metaclass  => 'Collection::Array',
@@ -31,12 +25,6 @@ has errors => (
         shift  => 'shift_error',
         clear  => 'clear_errors',
     },
-);
-
-has goto => (
-    is         => 'rw',
-    isa        => 'Str',
-    default    => '',
 );
 
 no Mouse;
