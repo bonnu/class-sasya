@@ -1,8 +1,7 @@
-package Class::Sasya::Hook::Try;
+package Class::Sasya::HookMoused::Try;
 
-use strict;
-use warnings;
-use base qw/Class::Sasya::Hook/;
+use Mouse;
+extends 'Class::Sasya::HookMoused';
 
 sub traverse {
     my ($self, $context, $func) = @_;
