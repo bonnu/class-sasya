@@ -1,6 +1,7 @@
 package Class::Sasya::Context;
 
 use Mouse;
+use MouseX::AttributeHelpers;
 
 has current => (
     is         => 'rw',
@@ -23,6 +24,7 @@ has errors => (
     metaclass  => 'Collection::Array',
     is         => 'rw',
     isa        => 'ArrayRef',
+    auto_deref => 1,
     default    => sub { [] },
     provides   => {
         count  => 'error_number',

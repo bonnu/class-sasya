@@ -250,12 +250,30 @@ sub combine_apply {
 
 sub apply_all_plugin_hooks {
     my ($class, @plugins) = @_;
+    my $meta = Mouse::Meta::Class->initialize($class);
+    my $loaded = $meta->{_loaded_plugins} ||= [];
     for my $plugin (@plugins) {
+        push @{ $loaded }, $plugin;
         my $list = $plugin->meta->{hook_point} || next;
-        for my $key (keys %{ $list }) {
-            $class->add_hook($key, $_) for @{ $list->{$key} };
+        for my $hook (keys %{ $list }) {
+            for my $method_name (@{ $list->{$hook} }) {
+                my $ref = ref $method_name;
+                if ($ref && $ref eq 'CODE') {
+                    my $code = $method_name;
+                    $method_name = _make_method_name($plugin, $hook);
+                    $meta->add_method($method_name => $code);
+                }
+                $class->add_hook($hook => $method_name);
+            }
         }
     }
+}
+
+sub _make_method_name {
+    my ($plugin_class, $hook_point) = @_;
+    $plugin_class =~ s!::!_!g;
+    $hook_point   =~ s!/!_!g;
+    lc $hook_point . '__' . $plugin_class;
 }
 
 1;
