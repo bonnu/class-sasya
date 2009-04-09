@@ -101,12 +101,10 @@ sub register {
 sub invoke {
     my ($self, $owner, @args) = @_;
     my $callback = $self->{callback} || $self->callback;
+    $callback->reset;
     while (my $sub = $callback->iterate) {
         my $ret = ref $sub ? $sub->($owner, @args) : $owner->$sub(@args);
-        unless ($ret) {
-            $callback->reset;
-            last;
-        }
+        last unless $ret;
     }
 }
 
