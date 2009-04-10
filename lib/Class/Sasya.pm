@@ -80,6 +80,7 @@ sub traversal_handler (&) {
         my $context = $self->context;
         my $handler = $self->_traversal_handler->($self, @_);
         $self->_root->traverse($context, $handler);
+        $self;
     }
     
     sub find_hook {
