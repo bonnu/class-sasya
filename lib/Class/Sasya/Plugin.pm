@@ -42,7 +42,7 @@ sub hook_to {
     my $meta = Mouse::Meta::Role->initialize(caller);
     # Ad-hoc
     my $list = $meta->{hook_point} ||= {};
-    push @{ $list->{$hook} ||= [] }, $sub;
+    push @{ $list->{$hook} ||= [] }, { class => $meta->name, sub => $sub };
 }
 
 sub unimport {

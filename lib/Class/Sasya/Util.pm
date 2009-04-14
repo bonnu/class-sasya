@@ -256,14 +256,15 @@ sub apply_all_plugin_hooks {
         push @{ $loaded }, $plugin;
         my $list = $plugin->meta->{hook_point} || next;
         for my $hook (keys %{ $list }) {
-            for my $method_name (@{ $list->{$hook} }) {
-                my $ref = ref $method_name;
+            for my $method (@{ $list->{$hook} }) {
+                my $name = $method->{'sub'};
+                my $ref  = ref $name;
                 if ($ref && $ref eq 'CODE') {
-                    my $code = $method_name;
-                    $method_name = _make_method_name($plugin, $hook);
-                    $meta->add_method($method_name => $code);
+                    my $code = $name;
+                    $name = _make_method_name($plugin, $hook);
+                    $meta->add_method($name => $code);
                 }
-                $class->add_hook($hook => $method_name);
+                $class->add_hook($hook => $name);
             }
         }
     }

@@ -79,7 +79,7 @@ sub traversal_handler (&) {
         my $self  = Scalar::Util::blessed $class ? $class : $class->new;
         my $context = $self->context;
         my $handler = $self->_traversal_handler->($self, @_);
-        $self->_root->traverse($context, $handler);
+        $self->_root->initiate($context, $handler);
         $self;
     }
     

@@ -108,15 +108,27 @@ sub invoke {
     }
 }
 
+sub initiate {
+    my ($self, $context, $func) = @_;
+    do {
+        last if $context->return;
+        $self->traverse($context, $func);
+    } while ($context->next_target);
+}
+
 sub traverse {
     my ($self, $context, $func) = @_;
     $context->current($self);
-    $func->($self);
-    return BREAK if $context->goto || $context->return;
+    $context->skip || $func->($self);
+    return BREAK if $context->return;
     map {
         return BREAK unless $_->traverse($context, $func)
     } @{ $self->{_children} };
     return CONTINUE;
+}
+
+sub skip_traverse {
+    my ($self, $context, $func) = @_;
 }
 
 sub get_path {
