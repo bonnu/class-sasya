@@ -11,90 +11,10 @@ use Mouse::Meta::Class;
 our @EXPORT_OK = qw/
     apply_all_plugins
     apply_all_plugin_hooks
+    apply_hooked_method
     make_class_accessor
     resolve_plugin_list
 /;
-
-# This method is not suitable for the style of Mouse.
-# When "MouseX::ClassAttribute" is released in the future, that will be used.
-sub make_class_accessor {
-    my ($class, $field, $data) = @_;
-    my $meta = Mouse::Meta::Class->initialize($class);
-    my $sub = sub {
-        my $ref = ref $_[0];
-        if ($ref) {
-            return $_[0]->{$field} = $_[1] if @_ > 1;
-            return $_[0]->{$field} if exists $_[0]->{$field};
-        }
-        my $want_meta = $_[0]->meta;
-        if (1 < @_ && $class ne $want_meta->name) {
-            return make_class_accessor($want_meta->name, $field)->(@_);
-        }
-        $data = $_[1] if @_ > 1;
-        return $data;
-    };
-    if ($meta->isa('Mouse::Meta::Class')) {
-        $meta->add_method($field => $sub);
-    }
-    else {
-        # for plug-in
-        no strict 'refs';
-        no warnings 'redefine';
-        *{$class . "::$field"} = $sub;
-    }
-    $sub;
-}
-
-sub resolve_plugin_list {
-    my $class = shift;
-    my (@namespace, @ignore);
-    if (1 == scalar @_) {
-        push @namespace,
-            (ref $_[0] && ref $_[0] eq 'ARRAY') ? @{ $_[0] } : $_[0];
-    }
-    else {
-        my %args = @_;
-        @namespace = @{ $args{namespace} || [] };
-        @ignore    = @{ $args{ignore}    || [] };
-    }
-    $class      || croak 'class is not specified';
-    @namespace  || croak 'namespace is not specified';
-    my $allowed_char = '[+*:\w]';
-    map {
-        /^$allowed_char*$/ ||
-            croak "reg-exp cannot be used to specify namespace : $_";
-    } (@namespace, @ignore);
-    _regularize_namespace($class, \@namespace);
-    _regularize_namespace($class, \@ignore);
-    my (@ns, @class);
-    for my $re (@namespace) {
-        if ($re =~ /^\^(.*)?(?=::\.\*\$$)/) {
-            push @ns, $1;
-            push @class, list_packages($1);
-        }
-        else {
-            (my $name = $re) =~ s/(^\^|\$$)//g;
-            push @class, $name;
-        }
-    }
-    my @modules = (@class, map { findallmod($_) } @ns);
-    my @plugins;
-    for my $module (@modules) {
-        next if grep { $module =~ /^$_$/ } @ignore;
-        push @plugins, $module;
-    }
-    @plugins;
-}
-
-sub _regularize_namespace {
-    my ($class, $classes) = @_;
-    for my $s (@{ $classes }) {
-        $s =~ s/^\+/$class\::/;
-        $s =~ s/\*$/.*/;
-        $s =~ s/::*/::/g;
-        $s = "^$s\$";
-    }
-}
 
 # The part of base was stolen from Mouse::Util::apply_all_roles.
 sub apply_all_plugins {
@@ -256,18 +176,23 @@ sub apply_all_plugin_hooks {
         push @{ $loaded }, $plugin;
         my $list = $plugin->meta->{hook_point} || next;
         for my $hook (keys %{ $list }) {
-            for my $method (@{ $list->{$hook} }) {
-                my $name = $method->{'sub'};
-                my $ref  = ref $name;
-                if ($ref && $ref eq 'CODE') {
-                    my $code = $name;
-                    $name = _make_method_name($plugin, $hook);
-                    $meta->add_method($name => $code);
-                }
-                $class->add_hook($hook => $name);
-            }
+            map {
+                apply_hooked_method($class, $hook, @{$_}{qw/sub class/})
+            } @{ $list->{$hook} };
         }
     }
+}
+
+sub apply_hooked_method {
+    my ($class, $hook, $sub, $by_class) = @_;
+    my $meta = Mouse::Meta::Class->initialize($class);
+    my $ref  = ref $sub;
+    if ($ref && $ref eq 'CODE') {
+        my $code = $sub;
+        $sub = _make_method_name($by_class || $class, $hook);
+        $meta->add_method($sub => $code);
+    }
+    $class->add_hook($hook => $sub);
 }
 
 sub _make_method_name {
@@ -275,6 +200,87 @@ sub _make_method_name {
     $plugin_class =~ s!::!_!g;
     $hook_point   =~ s!/!_!g;
     lc $hook_point . '__' . $plugin_class;
+}
+
+# This method is not suitable for the style of Mouse.
+# When "MouseX::ClassAttribute" is released in the future, that will be used.
+sub make_class_accessor {
+    my ($class, $field, $data) = @_;
+    my $meta = Mouse::Meta::Class->initialize($class);
+    my $sub = sub {
+        my $ref = ref $_[0];
+        if ($ref) {
+            return $_[0]->{$field} = $_[1] if @_ > 1;
+            return $_[0]->{$field} if exists $_[0]->{$field};
+        }
+        my $want_meta = $_[0]->meta;
+        if (1 < @_ && $class ne $want_meta->name) {
+            return make_class_accessor($want_meta->name, $field)->(@_);
+        }
+        $data = $_[1] if @_ > 1;
+        return $data;
+    };
+    if ($meta->isa('Mouse::Meta::Class')) {
+        $meta->add_method($field => $sub);
+    }
+    else {
+        # for plug-in
+        no strict 'refs';
+        no warnings 'redefine';
+        *{$class . "::$field"} = $sub;
+    }
+    $sub;
+}
+
+sub resolve_plugin_list {
+    my $class = shift;
+    my (@namespace, @ignore);
+    if (1 == scalar @_) {
+        push @namespace,
+            (ref $_[0] && ref $_[0] eq 'ARRAY') ? @{ $_[0] } : $_[0];
+    }
+    else {
+        my %args = @_;
+        @namespace = @{ $args{namespace} || [] };
+        @ignore    = @{ $args{ignore}    || [] };
+    }
+    $class      || croak 'class is not specified';
+    @namespace  || croak 'namespace is not specified';
+    my $allowed_char = '[+*:\w]';
+    map {
+        /^$allowed_char*$/ ||
+            croak "reg-exp cannot be used to specify namespace : $_";
+    } (@namespace, @ignore);
+    _regularize_namespace($class, \@namespace);
+    _regularize_namespace($class, \@ignore);
+    my (@ns, @class);
+    for my $re (@namespace) {
+        if ($re =~ /^\^(.*)?(?=::\.\*\$$)/) {
+            push @ns, $1;
+            push @class, list_packages($1);
+        }
+        else {
+            (my $name = $re) =~ s/(^\^|\$$)//g;
+            push @class, $name;
+        }
+    }
+    my @modules = (@class, map { findallmod($_) } @ns);
+    my @plugins;
+    for my $module (@modules) {
+        next if grep { $module =~ /^$_$/ } @ignore;
+        push @plugins, $module;
+    }
+    @plugins;
+}
+
+sub _regularize_namespace {
+    my ($class, $classes) = @_;
+    for my $s (@{ $classes }) {
+        $s =~ s/^\+/$class\::/;
+        $s =~ s/\*$/.*/;
+        $s =~ s/::*/::/g;
+        $s = "^$s\$";
+    }
 }
 
 1;

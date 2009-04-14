@@ -12,6 +12,7 @@ use Class::Sasya::Hook;
 use Class::Sasya::Util qw/
     apply_all_plugins
     apply_all_plugin_hooks
+    apply_hooked_method
     make_class_accessor
     resolve_plugin_list
 /;
@@ -20,6 +21,7 @@ our @EXPORT = qw/
     class_has
     hook
     hooks
+    hook_to
     plugins
     traversal_handler
 /;
@@ -59,6 +61,12 @@ sub hook {
 sub hooks {
     my $class = caller;
     $class->_root->append_hooks({ level => 1 }, @_);
+}
+
+sub hook_to {
+    my $class = caller;
+    my ($hook, $sub) = @_;
+    apply_hooked_method($class, $hook, $sub);
 }
 
 sub plugins {

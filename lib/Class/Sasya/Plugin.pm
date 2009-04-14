@@ -9,6 +9,7 @@ our $VERSION = '0.01';
 use Class::Sasya::Util qw/
     make_class_accessor
     resolve_plugin_list
+    apply_hooked_method
 /;
 
 our @EXPORT = qw/
@@ -42,7 +43,7 @@ sub hook_to {
     my $meta = Mouse::Meta::Role->initialize(caller);
     # Ad-hoc
     my $list = $meta->{hook_point} ||= {};
-    push @{ $list->{$hook} ||= [] }, { class => $meta->name, sub => $sub };
+    push @{ $list->{$hook} ||= [] }, { class => $meta->name, 'sub' => $sub };
 }
 
 sub unimport {
