@@ -4,36 +4,41 @@ use Mouse;
 use MouseX::AttributeHelpers;
 use Carp ();
 
-has current => (
-    is         => 'rw',
-    isa        => 'Class::Sasya::Hook',
-    trigger    => sub {
-        my ($self, $hook) = @_;
-        return unless $self->{skip};
-        if ($hook eq $self->{next_target}) {
-            $self->skip(0);
-            $self->clear_goto;
-        }
-    },
-);
-
 has return => (
     is         => 'rw',
     isa        => 'Bool',
     default    => sub { 0 },
 );
 
+has current => (
+    is         => 'rw',
+    isa        => 'Class::Sasya::Hook',
+    trigger    => sub {
+        my ($self, $hook) = @_;
+        return unless $self->{skip};
+        if ($hook eq $self->{_goto}) {
+            $self->skip(0);
+            $self->clear_goto;
+        }
+    },
+);
+
 sub goto {
     my ($self, $path) = @_;
-    $self->current
-        || Carp::croak 'current position is not set.';
-    my $hook = $self->current->find_by_path($path)
-        || Carp::croak "specified path doesn't exist: $path";
-    $self->next_target($hook);
-    $self->skip(1);
+    if ($path) {
+        $self->current
+            || Carp::croak 'current position is not set.';
+        my $hook = $self->current->find_by_path($path)
+            || Carp::croak "specified path doesn't exist: $path";
+        $self->_goto($hook);
+        $self->skip(1);
+    }
+    else {
+        $self->_goto;
+    }
 }
 
-has next_target => (
+has _goto => (
     is         => 'rw',
     isa        => 'Class::Sasya::Hook',
     clearer    => 'clear_goto',

@@ -113,7 +113,7 @@ sub initiate {
     do {
         last if $context->return;
         $self->traverse($context, $func);
-    } while ($context->next_target);
+    } while ($context->goto);
 }
 
 sub traverse {
