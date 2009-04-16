@@ -19,7 +19,7 @@ can_ok  +$foo, 'message';
 
 is      $foo->message, 'foo bar baz', '$foo->message is "foo bar baz"';
 
-ok      !$foo->context->has_error, '$foo->context has not an error';
+ok      !$foo->context, '$foo->context has not been defined yet';
 
 $foo->bootstrap;
 

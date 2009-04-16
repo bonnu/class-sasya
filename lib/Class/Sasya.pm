@@ -7,7 +7,6 @@ use MouseX::AttributeHelpers;
 
 our $VERSION = '0.01';
 
-use Class::Sasya::Context;
 use Class::Sasya::Hook;
 use Class::Sasya::Util qw/
     apply_all_plugins
@@ -35,17 +34,7 @@ sub import {
     Mouse->import({ into_level => 1 });
     __PACKAGE__->export_to_level(1);
     export_for($caller);
-    make_class_accessor(
-        $caller,
-        _root => Class::Sasya::Hook->new,
-    );
-    make_class_accessor(
-        $caller,
-        _traversal_handler => sub {
-            my ($self, @args) = @_;
-            return sub { $_[0]->invoke($self, @args) };
-        },
-    );
+    make_class_accessor($caller, _root => Class::Sasya::Hook->new);
 }
 
 sub class_has {
@@ -78,17 +67,15 @@ sub plugins {
 
 sub traversal_handler (&) {
     my $class = caller;
-    $class->_traversal_handler(@_);
+    make_class_accessor($class, traversal_sub => shift);
 }
 
 {
     sub bootstrap {
         my $class = shift;
         my $self  = Scalar::Util::blessed $class ? $class : $class->new;
-        my $context = $self->context;
-        my $handler = $self->_traversal_handler->($self, @_);
-        $self->_root->initiate($context, $handler);
-        $self;
+        $self->_root->initiate($self, @_);
+        return $self;
     }
     
     sub find_hook {
@@ -102,20 +89,18 @@ sub traversal_handler (&) {
             $hook->register($callback);
         }
     }
-
-    sub context {
-        my $self = shift;
-        $self->{context} ||= Class::Sasya::Context->new;
-    }
 }
 
 sub export_for {
     my $export_class = shift;
     my $meta = $export_class->meta;
+    $meta->add_attribute(
+        context => (is => 'rw', isa => 'Class::Sasya::Context'),
+    );
     {
         no strict 'refs';
         delete ${"$export_class\::"}{'with'};
-        for my $name (qw/bootstrap find_hook add_hook context/) {
+        for my $name (qw/bootstrap find_hook add_hook/) {
             $meta->add_method($name, \&{$name});
         }
     }
@@ -140,28 +125,7 @@ __END__
 
 =head1 NAME
 
-Class::Sasya - 
-
-=head1 SYNOPSIS
-
- package Salute;
- use Class::Sasya; # automatically turns on strict and warnings (Mouse base)
- 
- # The flow of event with hook is defined
- hooks
-     'initialize'
-     'main' => [qw/
-         foo
-         bar
-         baz
-     /],
-     'finalize',
- ;
- 
- # Modules that namespace corresponds to Salute::Plugin::* is loaded
- plugins
-     namespace => [qw/ +Plugin::* /],
- ;
+Class::Sasya - Meta framework of stream driven
 
 =head1 DESCRIPTION
 
@@ -171,9 +135,39 @@ Class::Sasya -
 It piles a chocolate as thin as the fiber like the layer,
 is woven delicately, and is very delicious.
 
-=head2 
+=head2 Conception
+
+ blah blah blah
+
+=head1 SYNOPSIS
+
+ package Salute;
+ use Class::Sasya; # automatically turns on strict and warnings (Mouse base, not Any::Moose)
+ 
+ # The flow of event with hook is defined
+ hooks
+     'initialize'
+     'dispatch' => [qw/
+         before
+         main
+         after
+     /],
+     'finalize',
+ ;
+ 
+ # Modules that namespace corresponds to Salute::Plugin::* is loaded
+ plugins
+     namespace => [qw/ +Plugin::* /],
+ ;
+
+ hook_to '/dispatch/main' => sub {
+     my ($self, @params) = @_;
+     ...
+ };
 
 =head1 KEYWORDS
+
+=head2 use Class::Sasya
 
 =head2 hooks
 
@@ -183,7 +177,9 @@ is woven delicately, and is very delicious.
 
 =head2 class_has
 
-=head2 traersal_handler
+=head2 hook_to
+
+=head2 traversal_handler
 
 =head1 
 

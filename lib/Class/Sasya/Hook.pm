@@ -9,6 +9,7 @@ use Tree::Simple qw/use_weak_refs/;
 use UNIVERSAL::require;
 
 use Class::Sasya::Callback;
+use Class::Sasya::Context;
 
 sub BREAK    () { 0 }
 sub CONTINUE () { 1 }
@@ -99,36 +100,41 @@ sub register {
 }
 
 sub invoke {
-    my ($self, $owner, @args) = @_;
+    my ($self, $obj, @args) = @_;
     my $callback = $self->{callback} || $self->callback;
     $callback->reset;
     while (my $sub = $callback->iterate) {
-        my $ret = ref $sub ? $sub->($owner, @args) : $owner->$sub(@args);
-        last unless $ret;
+        my $ret = ref $sub ? $sub->($obj, @args) : $obj->$sub(@args);
+        return 0 unless $ret;
     }
+    return 1;
 }
 
 sub initiate {
-    my ($self, $context, $func) = @_;
+    my ($self, $obj, @args) = @_;
+    my $context = Class::Sasya::Context->new;
+    $obj->can('context') && $obj->context($context);
+    my $handler = $obj->can('traversal_sub')
+        ? $obj->traversal_sub->($obj, @args)
+        : sub { $_[0]->invoke($obj, @args) };
     do {
         last if $context->return;
-        $self->traverse($context, $func);
+        $self->traverse($context, $handler);
     } while ($context->goto);
 }
 
 sub traverse {
     my ($self, $context, $func) = @_;
     $context->current($self);
-    $context->skip || $func->($self);
+    my $ret = 1;
+    $ret = $func->($self) unless $context->skip;
     return BREAK if $context->return;
-    map {
-        return BREAK unless $_->traverse($context, $func)
-    } @{ $self->{_children} };
+    if ($ret) {
+        map {
+            return BREAK unless $_->traverse($context, $func)
+        } @{ $self->{_children} };
+    }
     return CONTINUE;
-}
-
-sub skip_traverse {
-    my ($self, $context, $func) = @_;
 }
 
 sub get_path {
