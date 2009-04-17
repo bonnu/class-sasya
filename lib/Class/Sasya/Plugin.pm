@@ -41,9 +41,14 @@ sub class_has {
 sub hook_to {
     my ($hook, $sub) = @_;
     my $meta = Mouse::Meta::Role->initialize(caller);
-    # Ad-hoc
     my $list = $meta->{hook_point} ||= {};
-    push @{ $list->{$hook} ||= [] }, { class => $meta->name, 'sub' => $sub };
+    my %sub_info;
+    @sub_info{qw/
+        sub
+        package filename line subroutine hasargs wantarray evaltext
+        is_require hints bitmask
+    /} = ($sub, caller 0);
+    push @{ $list->{$hook} ||= [] }, \%sub_info;
 }
 
 sub unimport {

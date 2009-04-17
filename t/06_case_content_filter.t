@@ -3,6 +3,8 @@ use strict;
 use warnings;
 use Test::More 'no_plan';
 
+# example :
+
 {
     package Case::ContentFilter;
     use Class::Sasya;

@@ -176,20 +176,19 @@ sub apply_all_plugin_hooks {
         push @{ $loaded }, $plugin;
         my $list = $plugin->meta->{hook_point} || next;
         for my $hook (keys %{ $list }) {
-            map {
-                apply_hooked_method($class, $hook, @{$_}{qw/sub class/})
-            } @{ $list->{$hook} };
+            map { apply_hooked_method($class, $hook, $_) } @{ $list->{$hook} }
         }
     }
 }
 
 sub apply_hooked_method {
-    my ($class, $hook, $sub, $by_class) = @_;
+    my ($class, $hook, $sub_info) = @_;
     my $meta = Mouse::Meta::Class->initialize($class);
+    my $sub  = $sub_info->{'sub'};
     my $ref  = ref $sub;
     if ($ref && $ref eq 'CODE') {
         my $code = $sub;
-        $sub = _make_method_name($by_class || $class, $hook);
+        $sub = _make_method_name($sub_info->{package} || $class, $hook);
         $meta->add_method($sub => $code);
     }
     $class->add_hook($hook => $sub);

@@ -55,7 +55,13 @@ sub hooks {
 sub hook_to {
     my $class = caller;
     my ($hook, $sub) = @_;
-    apply_hooked_method($class, $hook, $sub);
+    my %sub_info;
+    @sub_info{qw/
+        sub
+        package filename line subroutine hasargs wantarray evaltext
+        is_require hints bitmask
+    /} = ($sub, caller 0);
+    apply_hooked_method($class, $hook, \%sub_info);
 }
 
 sub plugins {
