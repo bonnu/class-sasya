@@ -55,12 +55,12 @@ my $foo_2 = Foo->bootstrap;
 
 is $foo_2->stash, q/abcde/;
 
-{
+eval <<__DEF__;
     package Foo::C::Die;
     use Class::Sasya::Plugin;
 
     hook_to '/c' => sub { die };
-}
+__DEF__
 
 {
     package Foo;

@@ -13,6 +13,7 @@ use Class::Sasya::Util qw/
     apply_all_plugin_hooks
     apply_hooked_method
     make_class_accessor
+    optimize_loaded_plugins
     resolve_plugin_list
 /;
 
@@ -34,6 +35,9 @@ sub import {
     Mouse->import({ into_level => 1 });
     __PACKAGE__->export_to_level(1);
     export_for($caller);
+    # XXX problem(s)
+    # How does '_root' become when the class that
+    # Class::Sasya influences is succeeded to?
     make_class_accessor($caller, _root => Class::Sasya::Hook->new);
 }
 
@@ -67,8 +71,10 @@ sub hook_to {
 sub plugins {
     my $class = caller;
     my @plugins = resolve_plugin_list($class, @_);
-    apply_all_plugins($class, @plugins);
-    apply_all_plugin_hooks($class, @plugins);
+    if (0 < @plugins) {
+        apply_all_plugins($class, @plugins);
+        apply_all_plugin_hooks($class, @plugins);
+    }
 }
 
 sub traversal_handler (&) {
@@ -100,9 +106,7 @@ sub traversal_handler (&) {
 sub export_for {
     my $export_class = shift;
     my $meta = $export_class->meta;
-    $meta->add_attribute(
-        context => (is => 'rw', isa => 'Class::Sasya::Context'),
-    );
+    $meta->add_attribute(context => (is => 'rw'));
     {
         no strict 'refs';
         delete ${"$export_class\::"}{'with'};

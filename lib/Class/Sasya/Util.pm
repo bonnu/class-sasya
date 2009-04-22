@@ -4,15 +4,18 @@ use strict;
 use warnings;
 use base qw/Exporter/;
 use Carp qw/croak confess/;
-use Devel::InnerPackage qw/list_packages/;
-use Module::Find qw/findallmod/;
+use Devel::InnerPackage ();
+use Module::Find ();
 use Mouse::Meta::Class;
+use Mouse::Util ();
 
 our @EXPORT_OK = qw/
     apply_all_plugins
     apply_all_plugin_hooks
     apply_hooked_method
+    get_loaded_plugins
     make_class_accessor
+    optimize_loaded_plugins
     resolve_plugin_list
 /;
 
@@ -171,7 +174,7 @@ sub combine_apply {
 sub apply_all_plugin_hooks {
     my ($class, @plugins) = @_;
     my $meta = Mouse::Meta::Class->initialize($class);
-    my $loaded = $meta->{_loaded_plugins} ||= [];
+    my $loaded = $meta->{sasya_loaded_plugins} ||= [];
     for my $plugin (@plugins) {
         push @{ $loaded }, $plugin;
         my $list = $plugin->meta->{hook_point} || next;
@@ -188,7 +191,13 @@ sub apply_hooked_method {
     my $ref  = ref $sub;
     if ($ref && $ref eq 'CODE') {
         my $code = $sub;
-        $sub = _make_method_name($sub_info->{package} || $class, $hook);
+        $sub = do {
+            my $name    = $sub_info->{package} || $class;
+            my $hook_cp = $hook;
+            $name    =~ s!::!_!g;
+            $hook_cp =~ s!/!_!g;
+            lc "$hook\__$name";
+        };
         $meta->add_method($sub => $code);
     }
     $class->add_hook($hook => $sub);
@@ -231,6 +240,26 @@ sub make_class_accessor {
     $sub;
 }
 
+sub get_loaded_plugins {
+    my $class = shift;
+    my %loaded;
+    for my $super (@{ Mouse::Util::get_linear_isa($class) }) {
+        next unless $super->can('meta');
+        next unless exists $super->meta->{sasya_loaded_plugins};
+        for my $plugin (@{ $super->meta->{sasya_loaded_plugins} }) {
+            my $info = $loaded{$plugin} ||= {};
+            if (my $at = $info->{at}) {
+                $at = $info->{at} = [ $at ] unless ref $at;
+                push @{ $at }, $super;
+            }
+            else {
+                $info->{at} = $super;
+            }
+        }
+    }
+    wantarray ? keys %loaded : \%loaded;
+}
+
 sub resolve_plugin_list {
     my $class = shift;
     my (@namespace, @ignore);
@@ -256,17 +285,19 @@ sub resolve_plugin_list {
     for my $re (@namespace) {
         if ($re =~ /^\^(.*)?(?=::\.\*\$$)/) {
             push @ns, $1;
-            push @class, list_packages($1);
+            push @class, Devel::InnerPackage::list_packages($1);
         }
         else {
             (my $name = $re) =~ s/(^\^|\$$)//g;
             push @class, $name;
         }
     }
-    my @modules = (@class, map { findallmod($_) } @ns);
+    my @modules = (@class, map { Module::Find::findallmod($_) } @ns);
+    my $loaded  = get_loaded_plugins($class);
     my @plugins;
     for my $module (@modules) {
         next if grep { $module =~ /^$_$/ } @ignore;
+        next if exists $loaded->{$module};
         push @plugins, $module;
     }
     @plugins;
