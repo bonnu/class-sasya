@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use base qw/Exporter/;
 use Carp qw/croak confess/;
+use Class::Inspector;
 use Devel::InnerPackage ();
 use Module::Find ();
 use Mouse::Meta::Class;
@@ -16,6 +17,7 @@ our @EXPORT_OK = qw/
     get_loaded_plugins
     make_class_accessor
     optimize_loaded_plugins
+    register_plugins_info
     resolve_plugin_list
 /;
 
@@ -174,13 +176,30 @@ sub combine_apply {
 sub apply_all_plugin_hooks {
     my ($class, @plugins) = @_;
     my $meta = Mouse::Meta::Class->initialize($class);
-    my $loaded = $meta->{sasya_loaded_plugins} ||= [];
     for my $plugin (@plugins) {
-        push @{ $loaded }, $plugin;
         my $list = $plugin->meta->{hook_point} || next;
         for my $hook (keys %{ $list }) {
             map { apply_hooked_method($class, $hook, $_) } @{ $list->{$hook} }
         }
+    }
+}
+
+sub register_plugins_info {
+    my ($class, @plugins) = @_;
+    my $meta   = Mouse::Meta::Class->initialize($class);
+    my $loaded = $meta->{sasya_loaded_plugins} ||= [];
+    my @omit   = do {
+        require Mouse::Role;
+        require Class::Sasya::Util;
+        (@Mouse::Role::EXPORT, @Class::Sasya::Plugin::EXPORT);
+    };
+    for my $plugin (@plugins) {
+        my $methods = Class::Inspector->methods($plugin);
+        my @methods = grep {
+            my $f = $_;
+            ! grep { $_ eq $f } @omit
+        } @{ $methods };
+        push @{ $loaded }, { class => $plugin, method => \@methods };
     }
 }
 
@@ -247,7 +266,7 @@ sub get_loaded_plugins {
         next unless $super->can('meta');
         next unless exists $super->meta->{sasya_loaded_plugins};
         for my $plugin (@{ $super->meta->{sasya_loaded_plugins} }) {
-            my $info = $loaded{$plugin} ||= {};
+            my $info = $loaded{$plugin->{class}} ||= {};
             if (my $at = $info->{at}) {
                 $at = $info->{at} = [ $at ] unless ref $at;
                 push @{ $at }, $super;

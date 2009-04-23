@@ -14,6 +14,7 @@ use Class::Sasya::Util qw/
     apply_hooked_method
     make_class_accessor
     optimize_loaded_plugins
+    register_plugins_info
     resolve_plugin_list
 /;
 
@@ -74,6 +75,7 @@ sub plugins {
     if (0 < @plugins) {
         apply_all_plugins($class, @plugins);
         apply_all_plugin_hooks($class, @plugins);
+        register_plugins_info($class, @plugins);
     }
 }
 
