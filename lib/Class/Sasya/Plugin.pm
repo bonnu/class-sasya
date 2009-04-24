@@ -27,7 +27,8 @@ sub import {
     {
         no strict 'refs';
         no warnings 'redefine';
-        *{$caller . '::meta'} = sub { $meta };
+        *{$caller . '::meta'}  = sub { $meta };
+        *{$caller . '::sasya'} = sub { $meta->{__PACKAGE__} ||= {} };
     }
     Mouse::Role->export_to_level(1, @_);
     Class::Sasya::Plugin->export_to_level(1, @_);
@@ -40,8 +41,8 @@ sub class_has {
 
 sub hook_to {
     my ($hook, $sub) = @_;
-    my $meta = Mouse::Meta::Role->initialize(caller);
-    my $list = $meta->{hook_point} ||= {};
+    my $sasya = caller->sasya;
+    my $list  = $sasya->{hook_point} ||= {};
     my %sub_info;
     @sub_info{qw/
         sub

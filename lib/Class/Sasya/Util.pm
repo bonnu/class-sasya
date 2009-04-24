@@ -175,9 +175,9 @@ sub combine_apply {
 
 sub apply_all_plugin_hooks {
     my ($class, @plugins) = @_;
-    my $meta = Mouse::Meta::Class->initialize($class);
     for my $plugin (@plugins) {
-        my $list = $plugin->meta->{hook_point} || next;
+        next unless $plugin->can('sasya');
+        my $list = $plugin->sasya->{hook_point} || next;
         for my $hook (keys %{ $list }) {
             map { apply_hooked_method($class, $hook, $_) } @{ $list->{$hook} }
         }
@@ -186,12 +186,16 @@ sub apply_all_plugin_hooks {
 
 sub register_plugins_info {
     my ($class, @plugins) = @_;
-    my $meta   = Mouse::Meta::Class->initialize($class);
-    my $loaded = $meta->{sasya_loaded_plugins} ||= [];
+    my $sasya  = $class->sasya;
+    my $loaded = $sasya->{loaded_plugins} ||= [];
     my @omit   = do {
         require Mouse::Role;
         require Class::Sasya::Util;
-        (@Mouse::Role::EXPORT, @Class::Sasya::Plugin::EXPORT);
+        (
+            @Mouse::Role::EXPORT,
+            @Class::Sasya::Plugin::EXPORT,
+            qw/meta sasya/,
+        );
     };
     for my $plugin (@plugins) {
         my $methods = Class::Inspector->methods($plugin);
@@ -210,23 +214,19 @@ sub apply_hooked_method {
     my $ref  = ref $sub;
     if ($ref && $ref eq 'CODE') {
         my $code = $sub;
-        $sub = do {
-            my $name    = $sub_info->{package} || $class;
-            my $hook_cp = $hook;
-            $name    =~ s!::!_!g;
-            $hook_cp =~ s!/!_!g;
-            lc "$hook\__$name";
-        };
+        $sub = make_method_name($sub_info->{package} || $class, $hook);
         $meta->add_method($sub => $code);
+    }
+    elsif ($ref) {
+        croak #XXX
     }
     $class->add_hook($hook => $sub);
 }
 
-sub _make_method_name {
-    my ($plugin_class, $hook_point) = @_;
-    $plugin_class =~ s!::!_!g;
-    $hook_point   =~ s!/!_!g;
-    lc $hook_point . '__' . $plugin_class;
+sub make_method_name {
+    my ($class_name, $hook) = @_;
+    $class_name =~ s!::!-!g;
+    "$hook:$class_name";
 }
 
 # This method is not suitable for the style of Mouse.
@@ -263,9 +263,9 @@ sub get_loaded_plugins {
     my $class = shift;
     my %loaded;
     for my $super (@{ Mouse::Util::get_linear_isa($class) }) {
-        next unless $super->can('meta');
-        next unless exists $super->meta->{sasya_loaded_plugins};
-        for my $plugin (@{ $super->meta->{sasya_loaded_plugins} }) {
+        next unless $super->can('sasya');
+        next unless exists $super->sasya->{loaded_plugins};
+        for my $plugin (@{ $super->sasya->{loaded_plugins} }) {
             my $info = $loaded{$plugin->{class}} ||= {};
             if (my $at = $info->{at}) {
                 $at = $info->{at} = [ $at ] unless ref $at;

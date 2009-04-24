@@ -114,17 +114,22 @@ sub initiate {
     my ($self, $obj, @args) = @_;
     my $context = Class::Sasya::Context->new;
     $obj->can('context') && $obj->context($context);
-    my $handler = $obj->can('traversal_sub')
-        ? $obj->traversal_sub->($obj, @args)
+    my $callback_sub  = $obj->can('callback_sub')
+        ? $obj->callback_sub->($obj, @args)
         : sub { $_[0]->invoke($obj, @args) };
+    my $traversal_sub = $obj->can('traversal_sub')
+        ? $obj->traversal_sub->() : undef;
     do {
         last if $context->return;
-        $self->traverse($context, $handler);
+        $self->traverse($context, $callback_sub, $traversal_sub);
     } while ($context->goto);
 }
 
 sub traverse {
-    my ($self, $context, $func) = @_;
+    my ($self, $context, $func, $traversal_sub) = @_;
+    if ($traversal_sub) {
+        return $traversal_sub->($self, $context, $func, $traversal_sub);
+    }
     $context->current($self);
     my $ret = 1;
     $ret = $func->($self) unless $context->skip;

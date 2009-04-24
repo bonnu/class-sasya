@@ -24,6 +24,7 @@ our @EXPORT = qw/
     hooks
     hook_to
     plugins
+    callback_handler
     traversal_handler
 /;
 
@@ -79,6 +80,11 @@ sub plugins {
     }
 }
 
+sub callback_handler (&) {
+    my $class = caller;
+    make_class_accessor($class, callback_sub => shift);
+}
+
 sub traversal_handler (&) {
     my $class = caller;
     make_class_accessor($class, traversal_sub => shift);
@@ -103,6 +109,11 @@ sub traversal_handler (&) {
             $hook->register($callback);
         }
     }
+
+    sub sasya {
+        my $class = shift;
+        $class->meta->{__PACKAGE__} ||= {};
+    }
 }
 
 sub export_for {
@@ -112,7 +123,7 @@ sub export_for {
     {
         no strict 'refs';
         delete ${"$export_class\::"}{'with'};
-        for my $name (qw/bootstrap find_hook add_hook/) {
+        for my $name (qw/bootstrap find_hook add_hook sasya/) {
             $meta->add_method($name, \&{$name});
         }
     }
@@ -190,6 +201,8 @@ is woven delicately, and is very delicious.
 =head2 class_has
 
 =head2 hook_to
+
+=head2 callback_handler
 
 =head2 traversal_handler
 
