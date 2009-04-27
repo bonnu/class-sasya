@@ -113,12 +113,10 @@ sub invoke {
 sub initiate {
     my ($self, $obj, @args) = @_;
     my $context = Class::Sasya::Context->new;
-    $obj->can('context') && $obj->context($context);
-    my $callback_sub  = $obj->can('callback_sub')
-        ? $obj->callback_sub->($obj, @args)
-        : sub { $_[0]->invoke($obj, @args) };
-    my $traversal_sub = $obj->can('traversal_sub')
-        ? $obj->traversal_sub->() : undef;
+    $obj->context($context);
+    my $default_cb    = sub { $_[0]->invoke($obj, @args) };
+    my $callback_sub  = $obj->callback_sub->($obj, @args) || $default_cb;
+    my $traversal_sub = $obj->traversal_sub->();
     do {
         last if $context->return;
         $self->traverse($context, $callback_sub, $traversal_sub);
@@ -140,6 +138,21 @@ sub traverse {
         } @{ $self->{_children} };
     }
     return CONTINUE;
+}
+
+sub initiate_scanning {
+    my ($self, $obj, $closure_creator, @args) = @_;
+    my $context = Class::Sasya::Context->new;
+    $obj->context($context);
+    my $callback_sub = $closure_creator->($obj, @args);
+    $self->_scanning($context, $callback_sub);
+}
+
+sub _scanning {
+    my ($node, $context, $callback_sub) = @_;
+    $context->current($node);
+    $callback_sub->($node);
+    map { $_->_scanning($context, $callback_sub) } @{ $node->{_children} };
 }
 
 sub get_path {

@@ -40,7 +40,9 @@ sub import {
     # XXX problem(s)
     # How does '_root' become when the class that
     # Class::Sasya influences is succeeded to?
-    make_class_accessor($caller, _root => Class::Sasya::Hook->new);
+    make_class_accessor($caller, _root         => Class::Sasya::Hook->new);
+    make_class_accessor($caller, callback_sub  => sub {});
+    make_class_accessor($caller, traversal_sub => sub {});
 }
 
 sub class_has {
@@ -82,12 +84,12 @@ sub plugins {
 
 sub callback_handler (&) {
     my $class = caller;
-    make_class_accessor($class, callback_sub => shift);
+    $class->callback_sub(shift);
 }
 
 sub traversal_handler (&) {
     my $class = caller;
-    make_class_accessor($class, traversal_sub => shift);
+    $class->traversal_sub(shift);
 }
 
 {
@@ -95,6 +97,13 @@ sub traversal_handler (&) {
         my $class = shift;
         my $self  = Scalar::Util::blessed $class ? $class : $class->new;
         $self->_root->initiate($self, @_);
+        return $self;
+    }
+
+    sub scanning {
+        my ($class, $callback_sub, @args) = @_;
+        my $self = Scalar::Util::blessed $class ? $class : $class->new;
+        $self->_root->initiate_scanning($self, $callback_sub, @args);
         return $self;
     }
     
@@ -123,7 +132,7 @@ sub export_for {
     {
         no strict 'refs';
         delete ${"$export_class\::"}{'with'};
-        for my $name (qw/bootstrap find_hook add_hook sasya/) {
+        for my $name (qw/bootstrap scanning find_hook add_hook sasya/) {
             $meta->add_method($name, \&{$name});
         }
     }
