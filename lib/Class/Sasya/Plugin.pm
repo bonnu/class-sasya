@@ -3,6 +3,7 @@ package Class::Sasya::Plugin;
 use strict;
 use warnings;
 use base qw/Mouse::Role/;
+use Carp qw/confess/;
 
 our $VERSION = '0.01';
 
@@ -15,6 +16,7 @@ use Class::Sasya::Util qw/
 our @EXPORT = qw/
     class_has
     hook_to
+    with
 /;
 
 sub import {
@@ -28,7 +30,7 @@ sub import {
         no strict 'refs';
         no warnings 'redefine';
         *{$caller . '::meta'}  = sub { $meta };
-        *{$caller . '::sasya'} = sub { $meta->{__PACKAGE__} ||= {} };
+        *{$caller . '::sasya'} = sub { shift->meta->{__PACKAGE__} ||= {} };
     }
     Mouse::Role->export_to_level(1, @_);
     Class::Sasya::Plugin->export_to_level(1, @_);
@@ -50,6 +52,23 @@ sub hook_to {
         is_require hints bitmask
     /} = ($sub, caller 0);
     push @{ $list->{$hook} ||= [] }, \%sub_info;
+}
+
+sub with {
+    my $class = caller;
+    my $meta  = Mouse::Meta::Role->initialize($class);
+    my $role  = shift;
+    my $args  = shift || {};
+    confess "Mouse::Role only supports 'with' on individual roles at a time" if @_ || !ref $args;
+    Mouse::load_class($role);
+    $role->meta->apply($meta, %$args);
+    _plugin_with($class, $role);
+}
+
+sub _plugin_with {
+    my ($class, $role) = @_;
+    my $with = $class->sasya->{with_plugins} ||= [];
+    push @{ $with }, $role;
 }
 
 sub unimport {

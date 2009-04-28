@@ -83,7 +83,7 @@ sub append_hooks {
             $self->addChild($hook = $id);
         }
         else {
-            $hook = $self->get_root->new($id, $self, );
+            $hook = $self->get_root->new($id, $self);
         }
         $hook->update_hold_stack($caller);
         if (0 < @hooks && ref $hooks[0] eq 'ARRAY') {
