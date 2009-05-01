@@ -32,7 +32,7 @@ sub import {
         *{$caller . '::meta'}  = sub { $meta };
         *{$caller . '::sasya'} = sub { shift->meta->{__PACKAGE__} ||= {} };
     }
-    Mouse::Role->export_to_level(1, @_);
+    Mouse::Role->export_to_level(1, grep { $_ ne 'with' } @Mouse::Role::EXPORT);
     Class::Sasya::Plugin->export_to_level(1, @_);
 }
 
@@ -54,6 +54,7 @@ sub hook_to {
     push @{ $list->{$hook} ||= [] }, \%sub_info;
 }
 
+# The part of base was stolen from Mouse::Role::with(v0.22).
 sub with {
     my $class = caller;
     my $meta  = Mouse::Meta::Role->initialize($class);

@@ -16,6 +16,7 @@ use Class::Sasya::Util qw/
     optimize_loaded_plugins
     register_plugins_info
     resolve_plugin_list
+    resolve_plugin_at_with
 /;
 
 our @EXPORT = qw/
@@ -77,6 +78,7 @@ sub plugins {
     my @plugins = resolve_plugin_list($class, @_);
     if (0 < @plugins) {
         apply_all_plugins($class, @plugins);
+        resolve_plugin_at_with($class, \@plugins);
         apply_all_plugin_hooks($class, @plugins);
         register_plugins_info($class, @plugins);
     }

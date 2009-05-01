@@ -19,9 +19,20 @@ our @EXPORT_OK = qw/
     optimize_loaded_plugins
     register_plugins_info
     resolve_plugin_list
+    resolve_plugin_at_with
 /;
 
-# The part of base was stolen from Mouse::Util::apply_all_roles.
+my @OMIT_METHOD_NAMES = do {
+    require Mouse::Role;
+    require Class::Sasya::Plugin;
+    (
+        @Mouse::Role::EXPORT,
+        @Class::Sasya::Plugin::EXPORT,
+        qw/meta sasya/,
+    );
+};
+
+# The part of base was stolen from Mouse::Util::apply_all_roles(v0.22).
 sub apply_all_plugins {
     my $meta = Mouse::Meta::Class->initialize(shift);
     my @roles;
@@ -188,20 +199,11 @@ sub register_plugins_info {
     my ($class, @plugins) = @_;
     my $sasya  = $class->sasya;
     my $loaded = $sasya->{loaded_plugins} ||= [];
-    my @omit   = do {
-        require Mouse::Role;
-        require Class::Sasya::Util;
-        (
-            @Mouse::Role::EXPORT,
-            @Class::Sasya::Plugin::EXPORT,
-            qw/meta sasya/,
-        );
-    };
     for my $plugin (@plugins) {
         my $methods = Class::Inspector->methods($plugin);
         my @methods = grep {
             my $f = $_;
-            ! grep { $_ eq $f } @omit
+            ! grep { $_ eq $f } @OMIT_METHOD_NAMES
         } @{ $methods };
         push @{ $loaded }, { class => $plugin, method => \@methods };
     }
@@ -330,6 +332,21 @@ sub _regularize_namespace {
         $s =~ s/::*/::/g;
         $s = "^$s\$";
     }
+}
+
+sub resolve_plugin_at_with {
+    my ($class, $plugin_list) = @_;
+    my @at_with;
+    my $loaded = $class->sasya->{loaded_plugins};
+    for my $plugin (@{ $plugin_list }) {
+        next unless $plugin->can('sasya');
+        next unless exists $plugin->sasya->{with_plugins};
+        for my $comate (@{ $plugin->sasya->{with_plugins} }) {
+            push @at_with, $comate
+                if grep { $comate ne $_->{class} } @{ $loaded };
+        }
+    }
+    push @{ $plugin_list }, @at_with;
 }
 
 1;

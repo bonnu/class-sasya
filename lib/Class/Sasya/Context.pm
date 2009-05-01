@@ -52,7 +52,7 @@ has skip => (
 
 has errors => (
     metaclass  => 'Collection::Array',
-    is         => 'rw',
+    is         => 'ro',
     isa        => 'ArrayRef',
     auto_deref => 1,
     default    => sub { [] },
