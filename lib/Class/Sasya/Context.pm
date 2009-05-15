@@ -51,17 +51,18 @@ has skip => (
 );
 
 has errors => (
-    metaclass  => 'Collection::Array',
-    is         => 'ro',
-    isa        => 'ArrayRef',
-    auto_deref => 1,
-    default    => sub { [] },
-    provides   => {
-        count  => 'error_number',
-        empty  => 'has_error',
-        push   => 'add_error',
-        shift  => 'shift_error',
-        clear  => 'clear_errors',
+    metaclass   => 'Collection::Array',
+    is          => 'ro',
+    isa         => 'ArrayRef',
+    auto_deref  => 1,
+    default     => sub { [] },
+    provides    => {
+        count   => 'error_number',
+        empty   => 'has_error',
+        push    => 'add_error',
+        shift   => 'shift_error',
+        unshift => 'unshift_error',
+        clear   => 'clear_errors',
     },
 );
 
