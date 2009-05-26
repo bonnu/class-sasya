@@ -141,18 +141,28 @@ sub traverse {
 }
 
 sub initiate_scanning {
-    my ($self, $obj, $closure_creator, @args) = @_;
+    my ($self, $obj, $creator, @args) = @_;
     my $context = Class::Sasya::Context->new;
     $obj->context($context);
-    my $callback_sub = $closure_creator->($obj, @args);
-    $self->_scanning($context, $callback_sub);
+    my ($before_cb, $after_cb);
+    if (ref $creator eq 'HASH') {
+        $before_cb = $creator->{before}->($obj, @args) if exists $creator->{before};
+        $after_cb  = $creator->{after} ->($obj, @args) if exists $creator->{after};
+    }
+    else {
+        $before_cb = $creator->($obj, @args); # or die
+    }
+    $self->_scanning($context, $before_cb, $after_cb);
 }
 
 sub _scanning {
-    my ($node, $context, $callback_sub) = @_;
+    my ($node, $context, $before_cb, $after_cb) = @_;
     $context->current($node);
-    $callback_sub->($node);
-    map { $_->_scanning($context, $callback_sub) } @{ $node->{_children} };
+    $before_cb->($node);
+    map {
+        $_->_scanning($context, $before_cb, $after_cb);
+    } @{ $node->{_children} };
+    $after_cb->($node) if $after_cb;
 }
 
 sub get_path {

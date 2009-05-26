@@ -30,7 +30,7 @@ sub import {
         no strict 'refs';
         no warnings 'redefine';
         *{$caller . '::meta'}  = sub { $meta };
-        *{$caller . '::sasya'} = sub { shift->meta->{__PACKAGE__} ||= {} };
+        *{$caller . '::sasya'} = sub { shift->meta->{'Class::Sasya::Plugin'} ||= {} };
     }
     Mouse::Role->export_to_level(1, grep { $_ ne 'with' } @Mouse::Role::EXPORT);
     Class::Sasya::Plugin->export_to_level(1, @_);

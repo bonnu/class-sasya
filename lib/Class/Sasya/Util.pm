@@ -55,32 +55,31 @@ sub apply_all_plugins {
         . " is not a Moose role")
         foreach @roles;
     # Following contexts were changed.
-    combine_apply($meta, @roles);
+    __PACKAGE__->combine_apply($meta, @roles);
 }
 
 # The part of base was stolen from Mouse::Meta::Role::combine_apply.
 sub combine_apply {
-    my($meta, @roles) = @_;
-    my $classname = $meta->name;
+    my(undef, $class, @roles) = @_;
+    my $classname = $class->name;
+
 #### Delaying this processing enables Role class to supplement 'requires' each other. 
-#   if ($meta->isa('Mouse::Meta::Class')) {
-#       for my $role_spec (@roles) {
-#           my $self = $role_spec->[0]->meta;
-#           for my $name (@{$self->{required_methods}}) {
-#               next if $classname->can($name);
-#               my $method_required = 0;
-#               for my $role (@roles) {
-#                   if ($self->name ne $role->[0] && $role->[0]->can($name)) {
-#                       $method_required = 1;
-#                   }
-#               }
-#               confess
-#                   "'" . $self->name .
-#                   "' requires the method '$name' to be implemented by '$classname'"
-#                   unless $method_required;
-#           }
-#       }
-#   }
+#    if ($class->isa('Mouse::Meta::Class')) {
+#        for my $role_spec (@roles) {
+#            my $self = $role_spec->[0]->meta;
+#            for my $name (@{$self->{required_methods}}) {
+#                unless ($classname->can($name)) {
+#                    my $method_required = 0;
+#                    for my $role (@roles) {
+#                        $method_required = 1 if $self->name ne $role->[0] && $role->[0]->can($name);
+#                    }
+#                    confess "'".$self->name."' requires the method '$name' to be implemented by '$classname'"
+#                        unless $method_required;
+#                }
+#            }
+#        }
+#    }
+
     {
         no strict 'refs';
         for my $role_spec (@roles) {
@@ -90,27 +89,31 @@ sub combine_apply {
             for my $name ($self->get_method_list) {
                 next if $name eq 'meta';
 
-                if ($classname->can($name)) {
+                my $class_function = "${classname}::${name}";
+                my $role_function = "${selfname}::${name}";
+                if (defined &$class_function) {
                     # XXX what's Moose's behavior?
                     #next;
                 } else {
-                    *{"${classname}::${name}"} = *{"${selfname}::${name}"};
+                    *$class_function = \&$role_function;
                 }
                 if ($args{alias} && $args{alias}->{$name}) {
                     my $dstname = $args{alias}->{$name};
                     unless ($classname->can($dstname)) {
-                        *{"${classname}::${dstname}"} = *{"${selfname}::${name}"};
+                        *{"${classname}::${dstname}"} = \&$role_function;
                     }
                 }
             }
         }
     }
-    if ($meta->isa('Mouse::Meta::Class')) {
+
+
+    if ($class->isa('Mouse::Meta::Class')) {
         # apply role to class
         for my $role_spec (@roles) {
             my $self = $role_spec->[0]->meta;
             for my $name ($self->get_attribute_list) {
-                next if $meta->has_attribute($name);
+                next if $class->has_attribute($name);
                 my $spec = $self->get_attribute($name);
 
                 my $metaclass = 'Mouse::Meta::Attribute';
@@ -123,7 +126,8 @@ sub combine_apply {
                         $metaclass = $new_class;
                     }
                 }
-                $metaclass->create($meta, $name, %$spec);
+
+                $metaclass->create($class, $name, %$spec);
             }
         }
     } else {
@@ -132,14 +136,15 @@ sub combine_apply {
         for my $role_spec (@roles) {
             my $self = $role_spec->[0]->meta;
             for my $name ($self->get_attribute_list) {
-                next if $meta->has_attribute($name);
+                next if $class->has_attribute($name);
                 my $spec = $self->get_attribute($name);
-                $meta->add_attribute($name, $spec);
+                $class->add_attribute($name, $spec);
             }
         }
     }
+
     # XXX Room for speed improvement in role to role
-    for my $modifier_type (qw/before after around/) {
+    for my $modifier_type (qw/before after around override/) {
         my $add_method = "add_${modifier_type}_method_modifier";
         for my $role_spec (@roles) {
             my $self = $role_spec->[0]->meta;
@@ -147,39 +152,37 @@ sub combine_apply {
 
             for my $method_name (keys %$modified) {
                 for my $code (@{ $modified->{$method_name} }) {
-                    $meta->$add_method($method_name => $code);
+                    $class->$add_method($method_name => $code);
                 }
             }
         }
     }
-#### Delaying this processing enables Role class to supplement 'requires' each other. 
-    if ($meta->isa('Mouse::Meta::Class')) {
+
+### Delaying this processing enables Role class to supplement 'requires' each other. 
+    if ($class->isa('Mouse::Meta::Class')) {
         for my $role_spec (@roles) {
             my $self = $role_spec->[0]->meta;
             for my $name (@{$self->{required_methods}}) {
-                next if $classname->can($name);
-                my $method_required = 0;
-                for my $role (@roles) {
-                    if ($self->name ne $role->[0] && $role->[0]->can($name)) {
-                        $method_required = 1;
+                unless ($classname->can($name)) {
+                    my $method_required = 0;
+                    for my $role (@roles) {
+                        $method_required = 1 if $self->name ne $role->[0] && $role->[0]->can($name);
                     }
+                    confess "'".$self->name."' requires the method '$name' to be implemented by '$classname'"
+                        unless $method_required;
                 }
-                confess
-                    "'" . $self->name .
-                    "' requires the method '$name' to be implemented by '$classname'"
-                    unless $method_required;
             }
         }
     }
-#### :(
+
     # append roles
     my %role_apply_cache;
-    my @apply_roles;
+    my $apply_roles = $class->roles;
     for my $role_spec (@roles) {
         my $self = $role_spec->[0]->meta;
-        push @apply_roles, $self unless $role_apply_cache{$self}++;
-        for my $role ($self->roles) {
-            push @apply_roles, $role unless $role_apply_cache{$role}++;
+        push @$apply_roles, $self unless $role_apply_cache{$self}++;
+        for my $role (@{ $self->roles }) {
+            push @$apply_roles, $role unless $role_apply_cache{$role}++;
         }
     }
 }
@@ -217,6 +220,7 @@ sub apply_hooked_method {
     if ($ref && $ref eq 'CODE') {
         my $code = $sub;
         $sub = make_method_name($sub_info->{package} || $class, $hook);
+        return if $class->can($sub);
         $meta->add_method($sub => $code);
     }
     elsif ($ref) {

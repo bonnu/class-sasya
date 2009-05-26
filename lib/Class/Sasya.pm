@@ -123,7 +123,7 @@ sub traversal_handler (&) {
 
     sub sasya {
         my $class = shift;
-        $class->meta->{__PACKAGE__} ||= {};
+        $class->meta->{'Class::Sasya'} ||= {};
     }
 }
 
