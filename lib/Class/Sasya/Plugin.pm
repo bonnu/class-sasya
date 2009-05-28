@@ -61,6 +61,7 @@ sub with {
     my $role  = shift;
     my $args  = shift || {};
     confess "Mouse::Role only supports 'with' on individual roles at a time" if @_ || !ref $args;
+    require Mouse;
     Mouse::load_class($role);
     $role->meta->apply($meta, %$args);
     _plugin_with($class, $role);
