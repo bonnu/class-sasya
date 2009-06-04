@@ -5,10 +5,10 @@ use warnings;
 use base qw/Class::Sasya::Hook/;
 
 sub traverse {
-    my ($self, $context, $func) = @_;
+    my ($self, $context, @args) = @_;
     my $ret;
     eval {
-        $ret = $self->SUPER::traverse($context, $func);
+        $ret = $self->SUPER::traverse($context, @args);
     };
     if ($@) {
         $context->add_error($@);
