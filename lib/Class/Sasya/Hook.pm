@@ -36,27 +36,14 @@ sub new {
     }
     my $self = $class->Tree::Simple::new({}, $parent);
     $self->setUID($id);
-    $self->update_hold_stack($args{holder}) if $args{holder};
-    $self->initialize(%args)                if $self->can('initialize');
+    if ($self->can('initialize')) {
+        $self->initialize(%args);
+    }
     return $self;
 }
 
 sub callback {
     return $_[0]->{callback} ||= Class::Sasya::Callback->new;
-}
-
-sub hold_stack {
-    return $_[0]->{hold_stack} ||= [];
-}
-
-sub update_hold_stack {
-    my ($self, $holder) = @_;
-    my $hold_stack = $self->hold_stack;
-    for my $i ($#{ $hold_stack } .. -1) {
-        last if $i < 0;
-        splice @{ $hold_stack }, $i, 1 if $hold_stack->[$i] eq $holder;
-    }
-    unshift @{ $hold_stack }, $holder;
 }
 
 sub is_unique_on_fraternity {
@@ -75,8 +62,7 @@ sub _is_hook {
 
 sub append_hooks {
     my ($self, $args, @hooks) = @_;
-    my $level  = exists $args->{level} ? delete $args->{level} : 0;
-    my $caller = caller $level;
+    my $level = exists $args->{level} ? delete $args->{level} : 0;
     while (my $id = shift @hooks) {
         my $hook;
         if (_is_hook($id)) {
@@ -85,7 +71,6 @@ sub append_hooks {
         else {
             $hook = $self->get_root->new($id, $self);
         }
-        $hook->update_hold_stack($caller);
         if (0 < @hooks && ref $hooks[0] eq 'ARRAY') {
             $hook->append_hooks(
                 { %{ $args }, level => $level + 1 }, @{ shift @hooks },
