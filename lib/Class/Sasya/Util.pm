@@ -3,28 +3,20 @@ package Class::Sasya::Util;
 use strict;
 use warnings;
 use base qw/Exporter/;
-use Carp qw/croak confess/;
+use Carp qw/croak/;
 use Class::Inspector;
 use Devel::InnerPackage ();
 use Module::Find ();
 use Mouse::Meta::Class;
+use Mouse::Meta::Role;
 use Mouse::Util ();
+use Scalar::Util qw/blessed/;
 
 our @EXPORT_OK = qw/
-    apply_all_plugins
-    apply_all_plugin_hooks
-    apply_hooked_method
-    get_loaded_plugins
     make_class_accessor
-    optimize_loaded_plugins
-    register_plugins_info
-    resolve_plugin_list
-    resolve_plugin_at_with
 /;
 
-my @OMIT_METHOD_NAMES = do {
-    require Mouse::Role;
-    require Class::Sasya::Plugin;
+my @PLUGIN_OMIT_METHOD_NAMES = do {
     (
         @Mouse::Role::EXPORT,
         @Class::Sasya::Plugin::EXPORT,
@@ -32,157 +24,21 @@ my @OMIT_METHOD_NAMES = do {
     );
 };
 
-# The part of base was stolen from Mouse::Util::apply_all_roles(v0.22).
-sub apply_all_plugins {
-    my $meta = Mouse::Meta::Class->initialize(shift);
-    my @roles;
-    # Basis of Data::OptList
-    my $max = scalar(@_);
-    for (my $i = 0; $i < $max ; $i++) {
-        if ($i + 1 < $max && ref($_[$i + 1])) {
-            push @roles, [ $_[$i++] => $_[$i] ];
-        } else {
-            push @roles, [ $_[$i] => {} ];
-        }
-    }
-    require Mouse;
-    foreach my $role_spec (@roles) {
-        Mouse::load_class($role_spec->[0]);
-    }
-    ( $_->[0]->can('meta') && $_->[0]->meta->isa('Mouse::Meta::Role') )
-        || croak("You can only consume roles, "
-        . $_->[0]
-        . " is not a Moose role")
-        foreach @roles;
-    # Following contexts were changed.
-    __PACKAGE__->combine_apply($meta, @roles);
-}
-
-# The part of base was stolen from Mouse::Meta::Role::combine_apply.
-sub combine_apply {
-    my(undef, $class, @roles) = @_;
-    my $classname = $class->name;
-
-#### Delaying this processing enables Role class to supplement 'requires' each other. 
-#    if ($class->isa('Mouse::Meta::Class')) {
-#        for my $role_spec (@roles) {
-#            my $self = $role_spec->[0]->meta;
-#            for my $name (@{$self->{required_methods}}) {
-#                unless ($classname->can($name)) {
-#                    my $method_required = 0;
-#                    for my $role (@roles) {
-#                        $method_required = 1 if $self->name ne $role->[0] && $role->[0]->can($name);
-#                    }
-#                    confess "'".$self->name."' requires the method '$name' to be implemented by '$classname'"
-#                        unless $method_required;
-#                }
-#            }
-#        }
-#    }
-
-    {
-        no strict 'refs';
-        for my $role_spec (@roles) {
-            my $self = $role_spec->[0]->meta;
-            my $selfname = $self->name;
-            my %args = %{ $role_spec->[1] };
-            for my $name ($self->get_method_list) {
-                next if $name eq 'meta';
-
-                my $class_function = "${classname}::${name}";
-                my $role_function = "${selfname}::${name}";
-                if (defined &$class_function) {
-                    # XXX what's Moose's behavior?
-                    #next;
-                } else {
-                    *$class_function = \&$role_function;
-                }
-                if ($args{alias} && $args{alias}->{$name}) {
-                    my $dstname = $args{alias}->{$name};
-                    unless ($classname->can($dstname)) {
-                        *{"${classname}::${dstname}"} = \&$role_function;
-                    }
-                }
+sub recollect_required_methods {
+    my $applicant = Mouse::Meta::Class->initialize(shift);
+    my @plugins   = @_;
+    for my $plugin (@plugins) {
+        next unless $plugin->can('sasya');
+        if (my $required = $plugin->sasya->{required_methods}) {
+            my $dummy    = Mouse::Meta::Role->create(undef);
+            $dummy->add_required_methods(@{ $required });
+            eval {
+                $dummy->_check_required_methods($applicant, { _to => 'class' });
+            };
+            if ($@) {
+                $@ =~ s/Mouse::Meta::Role::__ANON__::\d+/$plugin/;
+                die $@;
             }
-        }
-    }
-
-
-    if ($class->isa('Mouse::Meta::Class')) {
-        # apply role to class
-        for my $role_spec (@roles) {
-            my $self = $role_spec->[0]->meta;
-            for my $name ($self->get_attribute_list) {
-                next if $class->has_attribute($name);
-                my $spec = $self->get_attribute($name);
-
-                my $metaclass = 'Mouse::Meta::Attribute';
-                if ( my $metaclass_name = $spec->{metaclass} ) {
-                    my $new_class = Mouse::Util::resolve_metaclass_alias(
-                        'Attribute',
-                        $metaclass_name
-                    );
-                    if ( $metaclass ne $new_class ) {
-                        $metaclass = $new_class;
-                    }
-                }
-
-                $metaclass->create($class, $name, %$spec);
-            }
-        }
-    } else {
-        # apply role to role
-        # XXX Room for speed improvement
-        for my $role_spec (@roles) {
-            my $self = $role_spec->[0]->meta;
-            for my $name ($self->get_attribute_list) {
-                next if $class->has_attribute($name);
-                my $spec = $self->get_attribute($name);
-                $class->add_attribute($name, $spec);
-            }
-        }
-    }
-
-    # XXX Room for speed improvement in role to role
-    for my $modifier_type (qw/before after around override/) {
-        my $add_method = "add_${modifier_type}_method_modifier";
-        for my $role_spec (@roles) {
-            my $self = $role_spec->[0]->meta;
-            my $modified = $self->{"${modifier_type}_method_modifiers"};
-
-            for my $method_name (keys %$modified) {
-                for my $code (@{ $modified->{$method_name} }) {
-                    $class->$add_method($method_name => $code);
-                }
-            }
-        }
-    }
-
-### Delaying this processing enables Role class to supplement 'requires' each other. 
-    if ($class->isa('Mouse::Meta::Class')) {
-        for my $role_spec (@roles) {
-            my $self = $role_spec->[0]->meta;
-            for my $name (@{$self->{required_methods}}) {
-                unless ($classname->can($name)) {
-                    my $method_required = 0;
-                    for my $role (@roles) {
-                        $method_required = 1 if $self->name ne $role->[0] && $role->[0]->can($name);
-                    }
-                    confess "'".$self->name."' requires the method '$name' to be implemented by '$classname'"
-                        unless $method_required;
-                }
-            }
-        }
-    }
-
-    # append roles
-    my %role_apply_cache;
-    my $apply_roles = $class->roles;
-    for my $role_spec (@roles) {
-        my $self = $role_spec->[0]->meta;
-        push @$apply_roles, $self unless $role_apply_cache{$self}++;
-        for my $role (@{ $self->roles }) {
-            push @$apply_roles, $role unless $role_apply_cache{$role}++;
         }
     }
 }
@@ -206,7 +62,7 @@ sub register_plugins_info {
         my $methods = Class::Inspector->methods($plugin);
         my @methods = grep {
             my $f = $_;
-            ! grep { $_ eq $f } @OMIT_METHOD_NAMES
+            ! grep { $_ eq $f } @PLUGIN_OMIT_METHOD_NAMES
         } @{ $methods };
         push @{ $loaded }, { class => $plugin, method => \@methods };
     }

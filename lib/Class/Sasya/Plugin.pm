@@ -1,40 +1,39 @@
 package Class::Sasya::Plugin;
 
-use strict;
-use warnings;
-use base qw/Mouse::Role/;
+use Mouse;
+extends qw/Mouse::Role/;
 use Carp qw/confess/;
 
 our $VERSION = '0.01';
 
-use Class::Sasya::Util qw/
-    make_class_accessor
-    resolve_plugin_list
-    apply_hooked_method
-/;
+use Class::Sasya::Util qw/make_class_accessor/;
 
-our @EXPORT = qw/
-    class_has
-    hook_to
-    with
-/;
+our @EXPORT = qw/class_has hook_to/;
 
-sub import {
-    strict->import;
-    warnings->import;
-    my $class = shift;
+Mouse::Exporter->setup_import_methods(as_is => [ @Mouse::Role::EXPORT, @EXPORT ]);
+
+after 'import' => sub {
+    my $class  = shift;
     my $caller = caller;
     return if $caller eq 'main';
-    my $meta = Mouse::Meta::Role->initialize($caller);
-    {
-        no strict 'refs';
-        no warnings 'redefine';
-        *{$caller . '::meta'}  = sub { $meta };
-        *{$caller . '::sasya'} = sub { shift->meta->{'Class::Sasya::Plugin'} ||= {} };
-    }
-    Mouse::Role->export_to_level(1, grep { $_ ne 'with' } @Mouse::Role::EXPORT);
-    Class::Sasya::Plugin->export_to_level(1, @_);
-}
+    export_for($caller);
+};
+
+after 'with' => sub {
+    my $class = caller;
+    my $meta  = Mouse::Meta::Role->initialize($class);
+    my $role  = shift;
+    confess "Mouse::Role only supports 'with' on individual roles at a time" if @_;
+    push @{ $class->sasya->{with_plugins} ||= [] }, $role;
+};
+
+around 'requires' => sub {
+    my $orig  = shift;
+    my $class = caller;
+    my $meta  = Mouse::Meta::Role->initialize($class);
+    $meta->throw_error("Must specify at least one method") unless @_;
+    push @{ $class->sasya->{required_methods} ||= [] }, @_;
+};
 
 sub class_has {
     my $class = caller;
@@ -43,44 +42,26 @@ sub class_has {
 
 sub hook_to {
     my ($hook, $sub) = @_;
-    my $sasya = caller->sasya;
+    my $class = caller;
+    my $sasya = $class->sasya;
     my $list  = $sasya->{hook_point} ||= {};
     my %sub_info;
     @sub_info{qw/
         sub
-        package filename line subroutine hasargs wantarray evaltext
-        is_require hints bitmask
+        package filename line subroutine hasargs wantarray evaltext is_require hints bitmask
     /} = ($sub, caller 0);
     push @{ $list->{$hook} ||= [] }, \%sub_info;
 }
 
-# The part of base was stolen from Mouse::Role::with(v0.22).
-sub with {
-    my $class = caller;
-    my $meta  = Mouse::Meta::Role->initialize($class);
-    my $role  = shift;
-    my $args  = shift || {};
-    confess "Mouse::Role only supports 'with' on individual roles at a time" if @_ || !ref $args;
-    require Mouse;
-    Mouse::load_class($role);
-    $role->meta->apply($meta, %$args);
-    _plugin_with($class, $role);
+sub export_for {
+    my $export_class = shift;
+    my $meta = $export_class->meta;
+    $meta->add_method($_, \&{$_}) for qw/sasya/;
 }
 
-sub _plugin_with {
-    my ($class, $role) = @_;
-    my $with = $class->sasya->{with_plugins} ||= [];
-    push @{ $with }, $role;
-}
-
-sub unimport {
-    my $class  = shift;
-    my $caller = caller;
-    {
-        no strict 'refs';
-        for my $key (@{__PACKAGE__ . '::EXPORT'}, @Mouse::Role::EXPORT) {
-            delete ${"$caller\::"}{$key};
-        }
+{
+    sub sasya {
+        shift->meta->{+__PACKAGE__} ||= {};
     }
 }
 

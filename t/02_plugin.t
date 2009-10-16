@@ -31,7 +31,10 @@ can_ok  +$case_a, 'hello';
     package CaseC;
     use Class::Sasya;
 
-    plugins namespace => [qw/ TestPlugin::Hello TestPlugin::World /];
+    plugins namespace => [qw/
+        TestPlugin::Hello
+        TestPlugin::World
+    /];
 }
 
 my $case_c = CaseC->new;

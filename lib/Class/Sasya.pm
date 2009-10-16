@@ -1,42 +1,27 @@
 package Class::Sasya;
 
 use Mouse;
-extends 'Mouse';
-# Class::Sasya always uses MouseX::AttributeHelpers.
-use MouseX::AttributeHelpers;
+extends qw/Mouse/;
+use MouseX::AttributeHelpers; # Class::Sasya always uses MouseX::AttributeHelpers.
 
 our $VERSION = '0.01';
 
 use Class::Sasya::Hook;
-use Class::Sasya::Util qw/
-    apply_all_plugins
-    apply_all_plugin_hooks
-    apply_hooked_method
-    make_class_accessor
-    optimize_loaded_plugins
-    register_plugins_info
-    resolve_plugin_list
-    resolve_plugin_at_with
-/;
+use Class::Sasya::Util qw/make_class_accessor/;
 
 our @EXPORT = qw/
     class_has
-    hook
-    hooks
-    hook_to
+    hook hooks hook_to
     plugins
-    callback_handler
-    traversal_handler
+    callback_handler traversal_handler
 /;
 
-sub import {
-    strict->import;
-    warnings->import;
-    my $class = shift;
+Mouse::Exporter->setup_import_methods(as_is => [ @Mouse::EXPORT, @EXPORT ]);
+
+after 'import' => sub {
+    my $class  = shift;
     my $caller = caller;
     return if $caller eq 'main';
-    Mouse->import({ into_level => 1 });
-    __PACKAGE__->export_to_level(1);
     export_for($caller);
     # XXX problem(s)
     # How does '_root' become when the class that
@@ -44,7 +29,7 @@ sub import {
     make_class_accessor($caller, _root         => Class::Sasya::Hook->new);
     make_class_accessor($caller, callback_sub  => sub {});
     make_class_accessor($caller, traversal_sub => sub {});
-}
+};
 
 sub class_has {
     my $class = caller;
@@ -70,17 +55,18 @@ sub hook_to {
         package filename line subroutine hasargs wantarray evaltext
         is_require hints bitmask
     /} = ($sub, caller 0);
-    apply_hooked_method($class, $hook, \%sub_info);
+    Class::Sasya::Util::apply_hooked_method($class, $hook, \%sub_info);
 }
 
 sub plugins {
     my $class = caller;
-    my @plugins = resolve_plugin_list($class, @_);
+    my @plugins = Class::Sasya::Util::resolve_plugin_list($class, @_);
     if (0 < @plugins) {
-        apply_all_plugins($class, @plugins);
-        resolve_plugin_at_with($class, \@plugins);
-        apply_all_plugin_hooks($class, @plugins);
-        register_plugins_info($class, @plugins);
+        Mouse::Util::apply_all_roles($class, @plugins);
+        Class::Sasya::Util::resolve_plugin_at_with($class, \@plugins);
+        Class::Sasya::Util::apply_all_plugin_hooks($class, @plugins);
+        Class::Sasya::Util::register_plugins_info($class, @plugins);
+        Class::Sasya::Util::recollect_required_methods($class, @plugins);
     }
 }
 
@@ -92,6 +78,12 @@ sub callback_handler (&) {
 sub traversal_handler (&) {
     my $class = caller;
     $class->traversal_sub(shift);
+}
+
+sub export_for {
+    my $export_class = shift;
+    my $meta = $export_class->meta;
+    $meta->add_method($_, \&{$_}) for qw/bootstrap scanning find_hook add_hook context sasya/;
 }
 
 {
@@ -122,33 +114,13 @@ sub traversal_handler (&) {
     }
 
     sub sasya {
-        my $class = shift;
-        $class->meta->{'Class::Sasya'} ||= {};
+        shift->meta->{+__PACKAGE__} ||= {};
     }
-}
 
-sub export_for {
-    my $export_class = shift;
-    my $meta = $export_class->meta;
-    $meta->add_attribute(context => (is => 'rw'));
-    {
-        no strict 'refs';
-        delete ${"$export_class\::"}{'with'};
-        for my $name (qw/bootstrap scanning find_hook add_hook sasya/) {
-            $meta->add_method($name, \&{$name});
-        }
-    }
-}
-
-sub unimport {
-    my $class  = shift;
-    my $caller = caller;
-    {
-        no strict 'refs';
-        for my $key (@{__PACKAGE__ . '::EXPORT'}, @Mouse::EXPORT) {
-            delete ${"$caller\::"}{$key};
-        }
-    }
+    has context => (
+        is  => 'rw',
+        isa => 'Class::Sasya::Context',
+    );
 }
 
 1;
